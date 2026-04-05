@@ -689,9 +689,14 @@ def cluster_all(
 
     # Silhouette scores
     silhouette_by_cluster = compute_silhouette_scores(embeddings, labels)
+    for cid, score in silhouette_by_cluster.items():
+        if score < 0.3:
+            logger.warning(f"Cluster {cid} has low silhouette score {score:.3f} — cluster may be poorly defined")
 
     # Size histogram
     size_histogram = generate_size_histogram(labels)
+    if size_histogram["pct_under_5"] > 0.5:
+        logger.warning(f"Over 50% of clusters have fewer than 5 members — clustering may be too fragmented")
 
     # Central members per cluster
     central_idx_by_cluster = _find_central_members(embeddings, labels, final_centroids, top_n=5)
