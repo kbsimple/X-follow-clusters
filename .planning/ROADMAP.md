@@ -147,7 +147,7 @@
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Archive Parsing + Auth | 0/3 | Not started | - |
+| 1. Archive Parsing + Auth | 1/2 | In Progress|  |
 | 2. API Enrichment | 0/3 | Not started | - |
 | 3. Profile Scraping | 0/3 | Not started | - |
 | 4. NLP Clustering | 0/3 | Not started | - |
