@@ -55,7 +55,8 @@
 4. Enriched profiles include bio, location, professional category, pinned tweet text, follower/following counts, and verified status
 5. Every API response is cached to disk immediately; no URL is requested twice within a session
 
-**Plans**: TBD
+**Plans**:
+- [ ] 02-01-PLAN.md -- Batch API enrichment with rate limiting, error handling, and immediate caching
 
 ---
 
@@ -148,7 +149,7 @@
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Archive Parsing + Auth | 2/2 | Complete   | 2026-04-05 |
-| 2. API Enrichment | 0/3 | Not started | - |
+| 2. API Enrichment | 1/1 | Not started | - |
 | 3. Profile Scraping | 0/3 | Not started | - |
 | 4. NLP Clustering | 0/3 | Not started | - |
 | 5. Review Flow | 0/3 | Not started | - |
@@ -156,4 +157,4 @@
 
 ---
 
-*Last updated: 2026-04-02 after roadmap creation*
+*Last updated: 2026-04-05 after Phase 2 planning*
