@@ -122,7 +122,10 @@
 5. After a configurable number of approved rounds, the system offers to enable full automation mode
 6. Deferred clusters do not block approval of other clusters
 
-**Plans**: TBD
+**Plans**:
+- [x] 05-01-PLAN.md -- Review CLI entry point, approval registry, and cluster size histogram display
+- [x] 05-02-PLAN.md -- Cluster table display with per-member confidence and batch approve
+- [x] 05-03-PLAN.md -- Per-cluster actions (approve/reject/rename/merge/split/defer), merge/split operations, and automation offer
 
 ---
 
@@ -155,9 +158,9 @@
 | 2. API Enrichment | 1/1 | Complete   | 2026-04-05 |
 | 3. Profile Scraping | 1/1 | Complete    | 2026-04-05 |
 | 4. NLP Clustering | 2/2 | Complete   | 2026-04-05 |
-| 5. Review Flow | 0/3 | Not started | - |
+| 5. Review Flow | 3/3 | Not started | - |
 | 6. List Creation + Export | 0/3 | Not started | - |
 
 ---
 
-*Last updated: 2026-04-05 after Phase 4 planning*
+*Last updated: 2026-04-05 after Phase 5 planning*
