@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A Python tool that reads the `follower.js` file from an X data archive export, enriches each followed account with profile data from the X API and profile page scraping, clusters followers into semi-automated categorized lists, and creates those lists as native X API lists. The user reviews and approves clusters before they become lists, with an option to enable full automation after trust is established.
+A Python tool that reads the `following.js` file from an X data archive export, enriches each followed account with profile data from the X API and profile page scraping, clusters followers into semi-automated categorized lists, and creates those lists as native X API lists. The user reviews and approves clusters before they become lists, with an option to enable full automation after trust is established.
 
 ## Core Value
 
@@ -12,12 +12,13 @@ Transform a flat following list into organized, named X API lists that make it e
 
 ### Validated
 
-- [x] Parse `follower.js` from X data archive export — Phase 01
+- [x] Parse `following.js` from X data archive export — Phase 01
 - [x] X API authentication setup — Phase 01
+- [x] X API profile enrichment with caching, rate limiting, and error handling — Phase 02
 
 ### Active
 
-- [ ] Enrich followed accounts with rich profile data (X API + profile page scraping)
+- [ ] Enrich followed accounts with rich profile data (X API ✓, profile page scraping — Phase 3)
 - [ ] Semi-automated clustering: system suggests categories and clusters people, user reviews and approves
 - [ ] User-defined starter categories: Geographic (Bay Area, NYC, RI, etc.), Occupation (VC, Engineer, Financier), Political Action (campaigns, evangelism groups), Entertainment (sports, humor)
 - [ ] Discover additional categories beyond the starter set
@@ -34,8 +35,8 @@ Transform a flat following list into organized, named X API lists that make it e
 ## Context
 
 - User follows hundreds of people on X
-- No X API credentials exist yet — authentication must be implemented
-- Input file is `data/follower.js` from a personal X data archive (JSON wrapped in JS assignment)
+- [ ] API credentials obtained and configured (Phase 01 completed auth module)
+- Input file is `data/following.js` from a personal X data archive (JSON wrapped in JS assignment)
 - Lists should be 5–50 people each; multiple people can belong to multiple lists
 - User wants to review cluster quality before lists are created
 - Full automation is a goal after initial review rounds build confidence
@@ -74,4 +75,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-05 after Phase 01*
+*Last updated: 2026-04-05 after Phase 02*
