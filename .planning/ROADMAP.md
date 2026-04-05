@@ -99,7 +99,9 @@
 6. Cluster size histogram is reported; warning is shown if more than 50% of clusters have fewer than 5 members
 7. Silhouette score is computed; clusters with score below 0.3 are flagged as potentially over- or under-clustered
 
-**Plans**: TBD
+**Plans**:
+- [x] 04-01-PLAN.md -- Embeddings + semi-supervised K-Means clustering with seed anchoring
+- [x] 04-02-PLAN.md -- LLM-generated descriptive cluster names from member bios
 
 ---
 
@@ -152,10 +154,10 @@
 | 1. Archive Parsing + Auth | 2/2 | Complete   | 2026-04-05 |
 | 2. API Enrichment | 1/1 | Complete   | 2026-04-05 |
 | 3. Profile Scraping | 1/1 | Complete    | 2026-04-05 |
-| 4. NLP Clustering | 0/3 | Not started | - |
+| 4. NLP Clustering | 2/2 | Not started | - |
 | 5. Review Flow | 0/3 | Not started | - |
 | 6. List Creation + Export | 0/3 | Not started | - |
 
 ---
 
-*Last updated: 2026-04-05 after Phase 3 planning*
+*Last updated: 2026-04-05 after Phase 4 planning*
