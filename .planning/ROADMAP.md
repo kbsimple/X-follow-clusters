@@ -151,7 +151,7 @@
 |-------|----------------|--------|-----------|
 | 1. Archive Parsing + Auth | 2/2 | Complete   | 2026-04-05 |
 | 2. API Enrichment | 1/1 | Complete   | 2026-04-05 |
-| 3. Profile Scraping | 1/1 | Complete   | 2026-04-05 |
+| 3. Profile Scraping | 1/1 | Complete    | 2026-04-05 |
 | 4. NLP Clustering | 0/3 | Not started | - |
 | 5. Review Flow | 0/3 | Not started | - |
 | 6. List Creation + Export | 0/3 | Not started | - |
