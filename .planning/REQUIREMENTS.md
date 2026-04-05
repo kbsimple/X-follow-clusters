@@ -44,14 +44,14 @@ Format: `[CATEGORY]-[NUMBER]` (e.g., PARSE-01, ENRICH-03)
 
 ### CLUSTER — NLP Clustering
 
-- [ ] **CLUSTER-01**: Generate bio text embeddings via `sentence-transformers` (`all-MiniLM-L6-v2` default model)
-- [ ] **CLUSTER-02**: Apply NLP clustering on embeddings with configurable algorithm (HDBSCAN or K-Means)
-- [ ] **CLUSTER-03**: Enforce cluster size constraints: minimum 5 people, maximum 50 people per cluster
+- [x] **CLUSTER-01**: Generate bio text embeddings via `sentence-transformers` (`all-MiniLM-L6-v2` default model)
+- [x] **CLUSTER-02**: Apply NLP clustering on embeddings with configurable algorithm (HDBSCAN or K-Means)
+- [x] **CLUSTER-03**: Enforce cluster size constraints: minimum 5 people, maximum 50 people per cluster
 - [ ] **CLUSTER-04**: LLM-generated cluster names from member profiles (not just keyword extraction)
-- [ ] **CLUSTER-05**: Anchor clustering with seed categories: Geographic, Occupation, Political Action, Entertainment
-- [ ] **CLUSTER-06**: Discover additional categories beyond seed set based on profile content
-- [ ] **CLUSTER-07**: Report cluster size histogram; warn if >50% of clusters have fewer than 5 members
-- [ ] **CLUSTER-08**: Detect over-clustering and under-clustering via silhouette score; flag when score < 0.3
+- [x] **CLUSTER-05**: Anchor clustering with seed categories: Geographic, Occupation, Political Action, Entertainment
+- [x] **CLUSTER-06**: Discover additional categories beyond seed set based on profile content
+- [x] **CLUSTER-07**: Report cluster size histogram; warn if >50% of clusters have fewer than 5 members
+- [x] **CLUSTER-08**: Detect over-clustering and under-clustering via silhouette score; flag when score < 0.3
 
 ### REVIEW — Semi-Automated Review Flow
 
