@@ -15,10 +15,10 @@ Transform a flat following list into organized, named X API lists that make it e
 - [x] Parse `following.js` from X data archive export — Phase 01
 - [x] X API authentication setup — Phase 01
 - [x] X API profile enrichment with caching, rate limiting, and error handling — Phase 02
+- [x] Profile page scraping for supplemental fields (curl_cffi + BeautifulSoup) — Phase 03
 
 ### Active
 
-- [ ] Enrich followed accounts with rich profile data (X API ✓, profile page scraping — Phase 3)
 - [ ] Semi-automated clustering: system suggests categories and clusters people, user reviews and approves
 - [ ] User-defined starter categories: Geographic (Bay Area, NYC, RI, etc.), Occupation (VC, Engineer, Financier), Political Action (campaigns, evangelism groups), Entertainment (sports, humor)
 - [ ] Discover additional categories beyond the starter set
@@ -75,4 +75,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-05 after Phase 02*
+*Last updated: 2026-04-05 after Phase 03*
