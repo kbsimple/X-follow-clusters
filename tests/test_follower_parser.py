@@ -1,4 +1,4 @@
-"""Tests for follower.js parser.
+"""Tests for following.js parser.
 
 Run with: python -m pytest tests/test_follower_parser.py -v
 """
@@ -10,45 +10,52 @@ from pathlib import Path
 
 import pytest
 
-from src.parse.follower_parser import (
-    FollowerRecord,
+from src.parse.following_parser import (
+    FollowingRecord,
     ParseError,
-    parse_follower_js,
+    parse_following_js,
 )
 
 
 # =============================================================================
-# Test 1: Valid follower.js with 2 entries parses correctly
+# Test 1: Valid following.js with 2 entries parses correctly
 # =============================================================================
-def test_valid_follower_js_parses_two_entries(tmp_path):
-    """Test that a valid follower.js with 2 entries parses to 2 FollowerRecord objects."""
-    content = 'window.YTD.follower.part0 = [{"accountId": "123", "username": "alice"}, {"accountId": "456", "username": "bob"}]'
-    follower_file = tmp_path / "follower.js"
-    follower_file.write_text(content, encoding="utf-8")
+def test_valid_following_js_parses_two_entries(tmp_path):
+    """Test that a valid following.js with 2 entries parses to 2 FollowingRecord objects."""
+    content = (
+        'window.YTD.following.part0 = ['
+        '{"following": {"accountId": "123", "userLink": "https://twitter.com/intent/user?user_id=123"}},'
+        '{"following": {"accountId": "456", "userLink": "https://twitter.com/intent/user?user_id=456"}}'
+        ']'
+    )
+    following_file = tmp_path / "following.js"
+    following_file.write_text(content, encoding="utf-8")
 
-    records = parse_follower_js(follower_file)
+    records = parse_following_js(following_file)
 
     assert len(records) == 2
     assert records[0].account_id == "123"
-    assert records[0].username == "alice"
     assert records[1].account_id == "456"
-    assert records[1].username == "bob"
 
 
 # =============================================================================
 # Test 2: JS prefix stripping
 # =============================================================================
 def test_js_prefix_stripping(tmp_path):
-    """Test that JS prefix 'window.YTD.follower.part0 = ' is stripped correctly."""
-    content = 'window.YTD.follower.part0 = [{"accountId": "999", "username": "testuser"}]'
-    follower_file = tmp_path / "follower.js"
-    follower_file.write_text(content, encoding="utf-8")
+    """Test that JS prefix 'window.YTD.following.part0 = ' is stripped correctly."""
+    content = (
+        'window.YTD.following.part0 = ['
+        '{"following": {"accountId": "999", "userLink": "https://twitter.com/intent/user?user_id=999"}}'
+        ']'
+    )
+    following_file = tmp_path / "following.js"
+    following_file.write_text(content, encoding="utf-8")
 
-    records = parse_follower_js(follower_file)
+    records = parse_following_js(following_file)
 
     assert len(records) == 1
     assert records[0].account_id == "999"
-    assert records[0].username == "testuser"
+    assert records[0].user_link == "https://twitter.com/intent/user?user_id=999"
 
 
 # =============================================================================
@@ -56,16 +63,15 @@ def test_js_prefix_stripping(tmp_path):
 # =============================================================================
 def test_invalid_json_structure_raises_parse_error(tmp_path):
     """Test that invalid JSON structure raises ParseError with file path in message."""
-    # Not valid JSON at all - missing quotes around key
-    content = 'window.YTD.follower.part0 = [{bad json}]'
-    follower_file = tmp_path / "follower.js"
-    follower_file.write_text(content, encoding="utf-8")
+    content = 'window.YTD.following.part0 = [{bad json}]'
+    following_file = tmp_path / "following.js"
+    following_file.write_text(content, encoding="utf-8")
 
     with pytest.raises(ParseError) as exc_info:
-        parse_follower_js(follower_file)
+        parse_following_js(following_file)
 
-    assert "follower.js" in str(exc_info.value)
-    assert exc_info.value.file_path == str(follower_file)
+    assert "following.js" in str(exc_info.value)
+    assert exc_info.value.file_path == str(following_file)
 
 
 # =============================================================================
@@ -73,43 +79,42 @@ def test_invalid_json_structure_raises_parse_error(tmp_path):
 # =============================================================================
 def test_per_entry_malformed_entry_skipped_with_warning(tmp_path, caplog):
     """Test that malformed entry logs warning and skips, returning valid entries."""
-    # Second entry is missing 'username'
+    # Second entry is missing 'following' key entirely
     content = (
-        'window.YTD.follower.part0 = ['
-        '{"accountId": "111", "username": "good"},'
-        '{"accountId": "222"}'  # missing username
+        'window.YTD.following.part0 = ['
+        '{"following": {"accountId": "111", "userLink": "https://twitter.com/intent/user?user_id=111"}},'
+        '{"other": {"accountId": "222"}}'
         ']'
     )
-    follower_file = tmp_path / "follower.js"
-    follower_file.write_text(content, encoding="utf-8")
+    following_file = tmp_path / "following.js"
+    following_file.write_text(content, encoding="utf-8")
 
     with caplog.at_level(logging.WARNING):
-        records = parse_follower_js(follower_file)
+        records = parse_following_js(following_file)
 
     assert len(records) == 1
     assert records[0].account_id == "111"
-    assert records[0].username == "good"
-
-    # Check that a warning was logged about the skipped entry
-    assert any("Skipping entry" in record and "1" in record for record in caplog.messages), \
-        f"Expected skip warning for entry 1, got: {caplog.messages}"
+    assert any("Skipping entry" in msg and "1" in msg for msg in caplog.messages)
 
 
 # =============================================================================
-# Test 5: Escaped Unicode in username handled correctly
+# Test 5: userLink is optional
 # =============================================================================
-def test_escaped_unicode_in_username(tmp_path):
-    """Test that escaped Unicode in username (e.g., '\\u4e2d\\u6587') is handled correctly."""
-    # "\u4e2d\u6587" is Chinese characters "中文"
-    content = r'window.YTD.follower.part0 = [{"accountId": "789", "username": "\u4e2d\u6587"}]'
-    follower_file = tmp_path / "follower.js"
-    follower_file.write_text(content, encoding="utf-8")
+def test_user_link_is_optional(tmp_path):
+    """Test that userLink is optional — entry without it is still accepted."""
+    content = (
+        'window.YTD.following.part0 = ['
+        '{"following": {"accountId": "222"}}'
+        ']'
+    )
+    following_file = tmp_path / "following.js"
+    following_file.write_text(content, encoding="utf-8")
 
-    records = parse_follower_js(follower_file)
+    records = parse_following_js(following_file)
 
     assert len(records) == 1
-    assert records[0].account_id == "789"
-    assert records[0].username == "中文"
+    assert records[0].account_id == "222"
+    assert records[0].user_link == ""
 
 
 # =============================================================================
@@ -117,11 +122,11 @@ def test_escaped_unicode_in_username(tmp_path):
 # =============================================================================
 def test_empty_array_returns_empty_list(tmp_path):
     """Test that empty array returns empty list, not an error."""
-    content = 'window.YTD.follower.part0 = []'
-    follower_file = tmp_path / "follower.js"
-    follower_file.write_text(content, encoding="utf-8")
+    content = 'window.YTD.following.part0 = []'
+    following_file = tmp_path / "following.js"
+    following_file.write_text(content, encoding="utf-8")
 
-    records = parse_follower_js(follower_file)
+    records = parse_following_js(following_file)
 
     assert records == []
 
@@ -132,40 +137,36 @@ def test_empty_array_returns_empty_list(tmp_path):
 def test_entry_with_extra_fields_accepted(tmp_path):
     """Test that entries with extra fields are accepted (future-proofing)."""
     content = (
-        'window.YTD.follower.part0 = [{'
-        '"accountId": "555", '
-        '"username": "extra", '
-        '"bio": "This is a bio", '
-        '"followers": 100, '
-        '"joined": "2020-01-01"'
+        'window.YTD.following.part0 = [{'
+        '"following": {"accountId": "555", "userLink": "https://twitter.com/intent/user?user_id=555"}, '
+        '"extraField": "ignored"'
         '}]'
     )
-    follower_file = tmp_path / "follower.js"
-    follower_file.write_text(content, encoding="utf-8")
+    following_file = tmp_path / "following.js"
+    following_file.write_text(content, encoding="utf-8")
 
-    records = parse_follower_js(follower_file)
+    records = parse_following_js(following_file)
 
     assert len(records) == 1
     assert records[0].account_id == "555"
-    assert records[0].username == "extra"
 
 
 # =============================================================================
-# Additional edge case: renamed/deleted account (missing accountId)
+# Additional edge case: missing 'following' key
 # =============================================================================
-def test_renamed_deleted_account_missing_account_id_skipped(tmp_path, caplog):
-    """Test that entry missing accountId is logged and skipped (renamed/deleted account)."""
+def test_missing_following_key_skipped(tmp_path, caplog):
+    """Test that entry missing 'following' key is logged and skipped."""
     content = (
-        'window.YTD.follower.part0 = ['
-        '{"accountId": "111", "username": "good"},'
-        '{"username": "orphaned"}'  # missing accountId
+        'window.YTD.following.part0 = ['
+        '{"following": {"accountId": "111", "userLink": "https://twitter.com/intent/user?user_id=111"}},'
+        '{"other": {"accountId": "orphaned"}}'
         ']'
     )
-    follower_file = tmp_path / "follower.js"
-    follower_file.write_text(content, encoding="utf-8")
+    following_file = tmp_path / "following.js"
+    following_file.write_text(content, encoding="utf-8")
 
     with caplog.at_level(logging.WARNING):
-        records = parse_follower_js(follower_file)
+        records = parse_following_js(following_file)
 
     assert len(records) == 1
     assert records[0].account_id == "111"
@@ -176,15 +177,18 @@ def test_renamed_deleted_account_missing_account_id_skipped(tmp_path, caplog):
 # =============================================================================
 def test_trailing_semicolon_stripped(tmp_path):
     """Test that trailing semicolon after JSON array is stripped."""
-    content = 'window.YTD.follower.part0 = [{"accountId": "123", "username": "alice"}];'
-    follower_file = tmp_path / "follower.js"
-    follower_file.write_text(content, encoding="utf-8")
+    content = (
+        'window.YTD.following.part0 = ['
+        '{"following": {"accountId": "123", "userLink": "https://twitter.com/intent/user?user_id=123"}}'
+        '];'
+    )
+    following_file = tmp_path / "following.js"
+    following_file.write_text(content, encoding="utf-8")
 
-    records = parse_follower_js(follower_file)
+    records = parse_following_js(following_file)
 
     assert len(records) == 1
     assert records[0].account_id == "123"
-    assert records[0].username == "alice"
 
 
 # =============================================================================
@@ -192,15 +196,18 @@ def test_trailing_semicolon_stripped(tmp_path):
 # =============================================================================
 def test_whitespace_before_js_prefix(tmp_path):
     """Test that whitespace before JS prefix is handled."""
-    content = '   window.YTD.follower.part0 = [{"accountId": "123", "username": "alice"}]'
-    follower_file = tmp_path / "follower.js"
-    follower_file.write_text(content, encoding="utf-8")
+    content = (
+        '   window.YTD.following.part0 = ['
+        '{"following": {"accountId": "123", "userLink": "https://twitter.com/intent/user?user_id=123"}}'
+        ']'
+    )
+    following_file = tmp_path / "following.js"
+    following_file.write_text(content, encoding="utf-8")
 
-    records = parse_follower_js(follower_file)
+    records = parse_following_js(following_file)
 
     assert len(records) == 1
     assert records[0].account_id == "123"
-    assert records[0].username == "alice"
 
 
 # =============================================================================
@@ -208,13 +215,51 @@ def test_whitespace_before_js_prefix(tmp_path):
 # =============================================================================
 def test_result_not_a_list_raises_parse_error(tmp_path):
     """Test that if stripped content parses to non-list, ParseError is raised."""
-    # Even though this is valid JSON, it's not a list - structural error
-    content = 'window.YTD.follower.part0 = {"accountId": "123", "username": "alice"}'
-    follower_file = tmp_path / "follower.js"
-    follower_file.write_text(content, encoding="utf-8")
+    content = (
+        'window.YTD.following.part0 = '
+        '{"following": {"accountId": "123", "userLink": "https://twitter.com/intent/user?user_id=123"}}'
+    )
+    following_file = tmp_path / "following.js"
+    following_file.write_text(content, encoding="utf-8")
 
     with pytest.raises(ParseError) as exc_info:
-        parse_follower_js(follower_file)
+        parse_following_js(following_file)
 
-    assert "follower.js" in str(exc_info.value)
-    assert exc_info.value.file_path == str(follower_file)
+    assert "following.js" in str(exc_info.value)
+    assert exc_info.value.file_path == str(following_file)
+
+
+# =============================================================================
+# Edge case: missing accountId in following block
+# =============================================================================
+def test_missing_account_id_skipped(tmp_path, caplog):
+    """Test that entry with missing accountId is logged and skipped."""
+    content = (
+        'window.YTD.following.part0 = ['
+        '{"following": {"accountId": "111", "userLink": "https://twitter.com/intent/user?user_id=111"}},'
+        '{"following": {"userLink": "https://twitter.com/intent/user?user_id=999"}}'
+        ']'
+    )
+    following_file = tmp_path / "following.js"
+    following_file.write_text(content, encoding="utf-8")
+
+    with caplog.at_level(logging.WARNING):
+        records = parse_following_js(following_file)
+
+    assert len(records) == 1
+    assert records[0].account_id == "111"
+
+
+# =============================================================================
+# Integration test: actual data/following.js file
+# =============================================================================
+def test_actual_following_js_file():
+    """Test parsing the actual data/following.js file from X export."""
+    records = parse_following_js("data/following.js")
+
+    assert len(records) == 867
+    # Verify sorted by account_id
+    for i in range(len(records) - 1):
+        assert records[i].account_id <= records[i+1].account_id
+    # Verify all have account_id
+    assert all(r.account_id for r in records)
