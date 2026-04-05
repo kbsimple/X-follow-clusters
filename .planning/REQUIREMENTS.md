@@ -16,7 +16,7 @@ Format: `[CATEGORY]-[NUMBER]` (e.g., PARSE-01, ENRICH-03)
 
 ### PARSE — Archive Parsing
 
-- [x] **PARSE-01**: Parse `follower.js` from X data archive export, extracting account IDs and usernames
+- [x] **PARSE-01**: Parse `following.js` from X data archive export, extracting account IDs (usernames resolved via X API)
 - [x] **PARSE-02**: Handle edge cases (escaped Unicode, renamed/deleted accounts) with per-entry error handling and logging
 - [x] **PARSE-03**: Validate JSON structure before processing; fail fast with clear error if format unexpected
 
