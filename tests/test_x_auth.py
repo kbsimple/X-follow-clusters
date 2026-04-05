@@ -109,20 +109,17 @@ class TestVerifyCredentials:
             access_token_secret="test_access_token_secret",
         )
 
+        import tweepy
+
         mock_client = MagicMock()
         error_response = MagicMock()
         error_response.status_code = 401
         error_response.text = "Unauthorized"
 
-        # Simulate tweepy raising TweepyException with response
-        class TweepyException(Exception):
-            def __init__(self, msg, response=None):
-                super().__init__(msg)
-                self.response = response
+        fake_exc = tweepy.TweepyException("401 Unauthorized")
+        fake_exc.response = error_response
 
-        mock_client.get_me.side_effect = TweepyException(
-            "401 Unauthorized", response=error_response
-        )
+        mock_client.get_me.side_effect = fake_exc
 
         with patch("src.auth.x_auth.tweepy.Client", return_value=mock_client):
             with pytest.raises(AuthError) as exc_info:
@@ -146,19 +143,17 @@ class TestVerifyCredentials:
             access_token_secret="test_access_token_secret",
         )
 
+        import tweepy
+
         mock_client = MagicMock()
         error_response = MagicMock()
         error_response.status_code = 429
         error_response.text = "Rate limit exceeded"
 
-        class TweepyException(Exception):
-            def __init__(self, msg, response=None):
-                super().__init__(msg)
-                self.response = response
+        fake_exc = tweepy.TweepyException("429 Rate limit exceeded")
+        fake_exc.response = error_response
 
-        mock_client.get_me.side_effect = TweepyException(
-            "429 Rate limit exceeded", response=error_response
-        )
+        mock_client.get_me.side_effect = fake_exc
 
         with patch("src.auth.x_auth.tweepy.Client", return_value=mock_client):
             with pytest.raises(AuthError) as exc_info:
