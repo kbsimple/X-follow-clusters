@@ -36,11 +36,11 @@ Format: `[CATEGORY]-[NUMBER]` (e.g., PARSE-01, ENRICH-03)
 
 ### SCRAPE — Profile Enrichment (Scraping)
 
-- [ ] **SCRAPE-01**: Supplemental profile page scraping for fields the API doesn't expose
-- [ ] **SCRAPE-02**: TLS impersonation via `curl_cffi` to avoid fingerprinting blocks
-- [ ] **SCRAPE-03**: Random delays (2–5s with jitter) between scraping requests
-- [ ] **SCRAPE-04**: Check `robots.txt` before scraping; document which fields are scraped and legal basis
-- [ ] **SCRAPE-05**: Graceful degradation when scraping is blocked (fall back to API data only)
+- [x] **SCRAPE-01**: Supplemental profile page scraping for fields the API doesn't expose
+- [x] **SCRAPE-02**: TLS impersonation via `curl_cffi` to avoid fingerprinting blocks
+- [x] **SCRAPE-03**: Random delays (2–5s with jitter) between scraping requests
+- [x] **SCRAPE-04**: Check `robots.txt` before scraping; document which fields are scraped and legal basis
+- [x] **SCRAPE-05**: Graceful degradation when scraping is blocked (fall back to API data only)
 
 ### CLUSTER — NLP Clustering
 
