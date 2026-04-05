@@ -22,9 +22,9 @@ Format: `[CATEGORY]-[NUMBER]` (e.g., PARSE-01, ENRICH-03)
 
 ### AUTH — API Authentication
 
-- [ ] **AUTH-01**: Environment variable storage for X API credentials (Bearer token, API key/secret, access token/secret)
-- [ ] **AUTH-02**: Verify credentials with a lightweight endpoint (`GET /2/users/me`) before batch operations
-- [ ] **AUTH-03**: Explore alternatives to paid X API (third-party services: Apify, Bright Data; document findings before committing to paid tier)
+- [x] **AUTH-01**: Environment variable storage for X API credentials (Bearer token, API key/secret, access token/secret)
+- [x] **AUTH-02**: Verify credentials with a lightweight endpoint (`GET /2/users/me`) before batch operations
+- [x] **AUTH-03**: Explore alternatives to paid X API (third-party services: Apify, Bright Data; document findings before committing to paid tier)
 
 ### ENRICH — Profile Enrichment (X API)
 

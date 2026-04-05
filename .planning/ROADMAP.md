@@ -8,7 +8,7 @@
 
 ## Phases
 
-- [ ] **Phase 1: Archive Parsing + Auth Setup** — Parse follower.js, establish X API credentials
+- [x] **Phase 1: Archive Parsing + Auth Setup** — Parse follower.js, establish X API credentials (completed 2026-04-05)
 - [ ] **Phase 2: API Enrichment** — Batch profile enrichment via X API with rate limiting
 - [ ] **Phase 3: Profile Scraping** — Supplemental scraping for fields API does not expose
 - [ ] **Phase 4: NLP Clustering** — Bio embeddings + clustering + LLM-generated cluster names
@@ -147,7 +147,7 @@
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Archive Parsing + Auth | 1/2 | In Progress|  |
+| 1. Archive Parsing + Auth | 2/2 | Complete   | 2026-04-05 |
 | 2. API Enrichment | 0/3 | Not started | - |
 | 3. Profile Scraping | 0/3 | Not started | - |
 | 4. NLP Clustering | 0/3 | Not started | - |
