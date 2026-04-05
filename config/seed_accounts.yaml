@@ -1,0 +1,48 @@
+# Seed accounts for semi-supervised clustering
+#
+# These are example/placeholder usernames organized by category.
+# They are used as anchor points to guide the K-Means clustering.
+#
+# IMPORTANT: These MUST be replaced with real usernames from the enrichment
+# cache (data/enrichment/*.json) before running cluster_all().
+# Run this to discover real usernames once data is available:
+#   python -c "import json, glob; files=glob.glob('data/enrichment/*.json'); print([json.load(open(f))['username'] for f in files[:20]])"
+#
+# The current entries are realistic placeholders that serve as structural templates.
+# Real usernames should replace these once the enrichment cache is populated.
+
+geographic:
+  description: "Accounts whose bios or locations indicate a specific geographic region"
+  examples:
+    - "sundarpichai"    # Silicon Valley / California
+    - "alex，不到长城"    # China/Asia
+    - "nycgov"          # New York
+    - "london mayor"    # London
+    - "berlinonline"   # Berlin
+
+occupation:
+  description: "Accounts in similar professional roles or industries"
+  examples:
+    - "pmarca"         # Venture Capitalist / Tech
+    - "elonmusk"       # Engineering / Entrepreneurship
+    - "sama"           # AI Research / Leadership
+    - "kaboroom"       # Engineering / Product
+    - "Austen"         # Finance / Investment
+
+political_action:
+  description: "Accounts focused on activism, campaigns, or political advocacy"
+  examples:
+    - "ACLU"            # Civil liberties advocacy
+    - "EFF"             # Digital rights advocacy
+    - "Amnesty"         # Human rights advocacy
+    - "greenpeace"      # Environmental advocacy
+    - "NPR"             # Public media / Journalism
+
+entertainment:
+  description: "Accounts focused on sports, humor, media, or entertainment"
+  examples:
+    - "TheOnion"        # Satirical humor
+    - "espn"            # Sports media
+    - "sportscenter"    # Sports media
+    - "netflix"         # Streaming entertainment
+    - "nytimes"         # Journalism / Media
