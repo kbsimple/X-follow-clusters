@@ -12,11 +12,11 @@ Transform a flat following list into organized, named X API lists that make it e
 
 ### Validated
 
-(None yet — ship to validate)
+- [x] Parse `follower.js` from X data archive export — Phase 01
+- [x] X API authentication setup — Phase 01
 
 ### Active
 
-- [ ] Parse `follower.js` from X data archive export
 - [ ] Enrich followed accounts with rich profile data (X API + profile page scraping)
 - [ ] Semi-automated clustering: system suggests categories and clusters people, user reviews and approves
 - [ ] User-defined starter categories: Geographic (Bay Area, NYC, RI, etc.), Occupation (VC, Engineer, Financier), Political Action (campaigns, evangelism groups), Entertainment (sports, humor)
@@ -74,4 +74,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-02 after initialization*
+*Last updated: 2026-04-05 after Phase 01*
