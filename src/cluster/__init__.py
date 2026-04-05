@@ -16,6 +16,11 @@ from src.cluster.embed import (
     get_text_for_embedding,
     load_seed_embeddings,
 )
+from src.cluster.name import (
+    name_all_clusters,
+    name_cluster,
+    rule_based_name,
+)
 
 __all__ = [
     "ClusterResult",
@@ -26,4 +31,7 @@ __all__ = [
     "generate_size_histogram",
     "get_text_for_embedding",
     "load_seed_embeddings",
+    "name_all_clusters",
+    "name_cluster",
+    "rule_based_name",
 ]
