@@ -28,11 +28,11 @@ Format: `[CATEGORY]-[NUMBER]` (e.g., PARSE-01, ENRICH-03)
 
 ### ENRICH — Profile Enrichment (X API)
 
-- [ ] **ENRICH-01**: Batch profile enrichment via `GET /2/users` (up to 100 user IDs per call)
-- [ ] **ENRICH-02**: Track `x-rate-limit-remaining` and `x-rate-limit-reset` headers; implement exponential backoff with jitter
-- [ ] **ENRICH-03**: Detect and flag suspended accounts (error code 63) and protected accounts (error code 179)
-- [ ] **ENRICH-04**: Extract profile fields: bio, location, professional_category, pinned tweet text, follower/following counts, verified status
-- [ ] **ENRICH-05**: Cache all API responses to disk immediately (never re-request within session)
+- [x] **ENRICH-01**: Batch profile enrichment via `GET /2/users` (up to 100 user IDs per call)
+- [x] **ENRICH-02**: Track `x-rate-limit-remaining` and `x-rate-limit-reset` headers; implement exponential backoff with jitter
+- [x] **ENRICH-03**: Detect and flag suspended accounts (error code 63) and protected accounts (error code 179)
+- [x] **ENRICH-04**: Extract profile fields: bio, location, professional_category, pinned tweet text, follower/following counts, verified status
+- [x] **ENRICH-05**: Cache all API responses to disk immediately (never re-request within session)
 
 ### SCRAPE — Profile Enrichment (Scraping)
 
