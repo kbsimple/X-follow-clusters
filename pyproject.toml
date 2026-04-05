@@ -1,0 +1,39 @@
+[project]
+name = "x-following-organizer"
+version = "0.1.0"
+description = "A Python tool that reads follower data, enriches via X API, clusters accounts, and creates native X API lists."
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+authors = [
+    {name = "Faiser", email = "keepbreakfastsimple@gmail.com"}
+]
+
+dependencies = [
+    "tweepy>=4.14.0",
+    "requests>=2.31.0",
+    "beautifulsoup4>=4.12.0",
+    "curl_cffi>=0.7.0",
+    "pyyaml>=6.0.0",
+    "sentence-transformers>=3.0.0",
+    "scikit-learn>=1.5.0",
+    "numpy>=2.0.0",
+    "scipy>=1.11.0,<1.14.0",
+    "hdbscan>=0.8.0",
+    "openai>=1.50.0",
+    "anthropic>=0.40.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+]
+
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
