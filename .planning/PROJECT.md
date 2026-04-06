@@ -23,7 +23,7 @@ Transform a flat following list into organized, named X API lists that make it e
 
 - [ ] User-defined starter categories: Geographic (Bay Area, NYC, RI, etc.), Occupation (VC, Engineer, Financier), Political Action (campaigns, evangelism groups), Entertainment (sports, humor)
 - [ ] Discover additional categories beyond the starter set
-- [ ] Create native X API lists for approved clusters (5–50 people per list)
+- [x] Create native X API lists for approved clusters (5–50 people per list) — Phase 06
 
 ### Out of Scope
 
@@ -54,7 +54,7 @@ Transform a flat following list into organized, named X API lists that make it e
 |----------|-----------|---------|
 | Semi-automated clustering | User wants review/approval before lists are created | — Validated (Phase 05) |
 | Rich profile data (API + scraping) | Maximize information for accurate clustering | — Pending |
-| X API lists as final output | User wants native X app lists, not a separate tool | — Pending |
+| X API lists as final output | User wants native X app lists, not a separate tool | — Validated (Phase 06) |
 | Python | User-specified tech stack | — Pending |
 
 ## Evolution
@@ -75,4 +75,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-06 after Phase 05*
+*Last updated: 2026-04-06 after Phase 06*
