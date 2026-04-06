@@ -82,7 +82,8 @@ def save_registry(reg: ApprovalRegistry, path: Path = APPROVAL_REGISTRY_PATH) ->
     path.parent.mkdir(parents=True, exist_ok=True)
     reg.timestamp = datetime.now().isoformat()
     tmp = path.with_suffix(".tmp")
-    json.dump(asdict(reg), tmp, indent=2)
+    with open(tmp, "w") as fh:
+        json.dump(asdict(reg), fh, indent=2)
     tmp.rename(path)
 
 
