@@ -16,14 +16,14 @@ Transform a flat following list into organized, named X API lists that make it e
 - [x] X API authentication setup — Phase 01
 - [x] X API profile enrichment with caching, rate limiting, and error handling — Phase 02
 - [x] Profile page scraping for supplemental fields (curl_cffi + BeautifulSoup) — Phase 03
+- [x] Semi-automated clustering: interactive review CLI with approve/reject/rename/merge/split/defer actions — Phase 05
+- [x] Enable full automation mode after user approves a few clustering rounds — Phase 05
 
 ### Active
 
-- [ ] Semi-automated clustering: system suggests categories and clusters people, user reviews and approves
 - [ ] User-defined starter categories: Geographic (Bay Area, NYC, RI, etc.), Occupation (VC, Engineer, Financier), Political Action (campaigns, evangelism groups), Entertainment (sports, humor)
 - [ ] Discover additional categories beyond the starter set
 - [ ] Create native X API lists for approved clusters (5–50 people per list)
-- [ ] Enable full automation mode after user approves a few clustering rounds
 
 ### Out of Scope
 
@@ -52,7 +52,7 @@ Transform a flat following list into organized, named X API lists that make it e
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Semi-automated clustering | User wants review/approval before lists are created | — Pending |
+| Semi-automated clustering | User wants review/approval before lists are created | — Validated (Phase 05) |
 | Rich profile data (API + scraping) | Maximize information for accurate clustering | — Pending |
 | X API lists as final output | User wants native X app lists, not a separate tool | — Pending |
 | Python | User-specified tech stack | — Pending |
@@ -75,4 +75,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-05 after Phase 03*
+*Last updated: 2026-04-06 after Phase 05*
