@@ -12,8 +12,8 @@
 - [x] **Phase 2: API Enrichment** — Batch profile enrichment via X API with rate limiting (completed 2026-04-05)
 - [x] **Phase 3: Profile Scraping** — Supplemental scraping for fields API does not expose (completed 2026-04-05)
 - [x] **Phase 4: NLP Clustering** — Bio embeddings + clustering + LLM-generated cluster names (completed 2026-04-05)
-- [ ] **Phase 5: Review Flow** — Semi-automated cluster review with approval workflow
-- [ ] **Phase 6: List Creation + Export** — Create X API lists and export data
+- [x] **Phase 5: Review Flow** — Semi-automated cluster review with approval workflow (completed 2026-04-06)
+- [x] **Phase 6: List Creation + Export** — Create X API lists and export data
 
 ---
 
@@ -35,7 +35,9 @@
 4. X API credentials are stored in environment variables and verified with `GET /2/users/me` before any data operations
 5. If no valid credentials exist, the tool surfaces the auth gap clearly and documents at least one alternative approach (Apify, Bright Data, paid tier)
 
-**Plans**: TBD
+**Plans**:
+- [x] 01-01-PLAN.md -- Archive parsing and auth setup
+- [x] 01-02-PLAN.md -- Auth CLI and verification
 
 ---
 
@@ -146,7 +148,10 @@
 5. Follower records with enrichment data and cluster assignments are exported to Parquet
 6. Approved clusters are exported to CSV with list name, member handles, and cluster metadata
 
-**Plans**: TBD
+**Plans**:
+- [x] 06-01-PLAN.md -- List creation: credential verification, dry-run CLI, HTTP 409 conflict handling, bulk member add, size validation
+- [x] 06-02-PLAN.md -- Data export: Parquet for enriched followers, CSV for approved/deferred clusters
+- [x] 06-03-PLAN.md -- Tests and CLI integration: unit tests for creator and exporter, export wired into --execute mode
 
 ---
 
@@ -158,9 +163,9 @@
 | 2. API Enrichment | 1/1 | Complete   | 2026-04-05 |
 | 3. Profile Scraping | 1/1 | Complete    | 2026-04-05 |
 | 4. NLP Clustering | 2/2 | Complete   | 2026-04-05 |
-| 5. Review Flow | 2/3 | In Progress|  |
-| 6. List Creation + Export | 0/3 | Not started | - |
+| 5. Review Flow | 3/3 | Complete   | 2026-04-06 |
+| 6. List Creation + Export | 3/3 | Ready to Execute | - |
 
 ---
 
-*Last updated: 2026-04-05 after Phase 5 planning*
+*Last updated: 2026-04-06 after Phase 6 planning*
