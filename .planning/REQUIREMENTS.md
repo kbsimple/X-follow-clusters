@@ -65,16 +65,16 @@ Format: `[CATEGORY]-[NUMBER]` (e.g., PARSE-01, ENRICH-03)
 
 ### LIST — X API List Creation
 
-- [ ] **LIST-01**: Create native X API lists for approved clusters (5–50 people per list)
-- [ ] **LIST-02**: Use `POST /2/lists` for list creation; handle naming conflicts (HTTP 409) gracefully
-- [ ] **LIST-03**: Bulk add members via `POST /2/lists/{id}/members/add_all` (up to 100 per request)
-- [ ] **LIST-04**: Validate list sizes against X's 5,000 member cap and 1,000 lists/account limit
-- [ ] **LIST-05**: Verify list creation is possible with a test call before full run
+- [x] **LIST-01**: Create native X API lists for approved clusters (5–50 people per list)
+- [x] **LIST-02**: Use `POST /2/lists` for list creation; handle naming conflicts (HTTP 409) gracefully
+- [x] **LIST-03**: Bulk add members via `POST /2/lists/{id}/members/add_all` (up to 100 per request)
+- [x] **LIST-04**: Validate list sizes against X's 5,000 member cap and 1,000 lists/account limit
+- [x] **LIST-05**: Verify list creation is possible with a test call before full run
 
 ### EXPORT — Data Export
 
-- [ ] **EXPORT-01**: Export follower records with enrichment data and cluster assignments to Parquet
-- [ ] **EXPORT-02**: Export final approved clusters to CSV with list name, member handles, and cluster metadata
+- [x] **EXPORT-01**: Export follower records with enrichment data and cluster assignments to Parquet
+- [x] **EXPORT-02**: Export final approved clusters to CSV with list name, member handles, and cluster metadata
 
 ---
 
