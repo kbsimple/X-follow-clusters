@@ -99,9 +99,16 @@ def main():
     parser.add_argument("--skip-histogram", action="store_true", help="Skip size histogram display")
     args = parser.parse_args()
 
-    # Load registry
+    from src.review.registry import load_registry, AUTOMATION_ROUNDS
+    from src.review.histogram import display_size_histogram
+    from src.review.table import display_cluster_table, display_member_details
+    from src.review.metrics import compute_member_confidences, get_cluster_member_details
+    from src.review.batch import get_batch_approvable_clusters, confirm_batch_approve, apply_batch_approve
+    from src.review.actions import handle_cluster_action
+    from src.review.automation import should_offer_automation, offer_automation_mode
+
     reg = load_registry()
-    console.print(f"[dim]Registry session: {reg.session_id}, rounds_completed={reg.rounds_completed}, automation_enabled={reg.automation_enabled}[/dim]\n")
+    console.print(f"[dim]Session: {reg.session_id} | Rounds: {reg.rounds_completed}/{AUTOMATION_ROUNDS} | Automation: {reg.automation_enabled}[/dim]\n")
 
     # Load cluster data
     clusters = load_cluster_data(args.cache_dir)
@@ -112,19 +119,82 @@ def main():
     summaries = build_cluster_summary(clusters)
     hist = summaries[0]["histogram"] if summaries else None
 
-    # Display size histogram (REVIEW-06)
     if not args.skip_histogram and hist:
         display_size_histogram(hist)
 
-    # Check automation offer (REVIEW-07)
-    if reg.rounds_completed >= AUTOMATION_ROUNDS and not reg.automation_offered:
-        console.print(f"[bold green]You have completed {reg.rounds_completed} approval rounds.[/bold green]")
-        console.print("[yellow]Full automation mode is now available for future review sessions.[/yellow]\n")
+    # Compute per-member confidences
+    try:
+        member_scores = compute_member_confidences(args.cache_dir)
+    except RuntimeError as e:
+        console.print(f"[yellow]{e}[/yellow]")
+        member_scores = {}
 
-    console.print(f"[bold]Found {len(summaries)} clusters to review.[/bold]")
-    console.print("Run this module with subcommands for review operations (see Plan 05-02 and 05-03).")
-    console.print("Plan 05-02: Table display + per-member confidence + batch approve")
-    console.print("Plan 05-03: Per-cluster actions + merge/split + automation offer\n")
+    # Build registry status map
+    registry_status: dict[int, str] = {}
+    for cid in summaries:
+        registry_status[cid] = "pending"
+
+    for e in reg.clusters["approved"]:
+        registry_status[e["cluster_id"]] = "approved"
+    for e in reg.clusters["deferred"]:
+        registry_status[e["cluster_id"]] = "deferred"
+    for e in reg.clusters["rejected"]:
+        registry_status[e["cluster_id"]] = "rejected"
+
+    # Batch approve check
+    eligible = get_batch_approvable_clusters(summaries, registry_status)
+    if eligible:
+        to_approve = confirm_batch_approve(eligible, reg)
+        if to_approve:
+            reg = apply_batch_approve(to_approve, reg)
+            # Refresh status
+            for e in reg.clusters["approved"]:
+                registry_status[e["cluster_id"]] = "approved"
+
+    # Automation offer
+    if should_offer_automation(reg):
+        reg = offer_automation_mode(reg)
+
+    # Main review loop: "See all, then act" per D-03
+    pending = [c for c in summaries if registry_status.get(c["cluster_id"], "pending") == "pending"]
+
+    if pending:
+        display_cluster_table(pending, member_scores, registry_status)
+        console.print(f"\n[bold]Reviewing {len(pending)} pending clusters...[/bold]\n")
+
+        for i, cluster in enumerate(pending, 1):
+            from src.review.table import print_review_prompt
+            print_review_prompt(cluster, i, len(pending))
+
+            reg, changed = handle_cluster_action(
+                cluster, reg, member_scores, args.cache_dir, summaries
+            )
+
+            if changed:
+                # Refresh cluster data after merge/split
+                clusters = load_cluster_data(args.cache_dir)
+                summaries = build_cluster_summary(clusters)
+                member_scores = compute_member_confidences(args.cache_dir)
+                # Rebuild status
+                registry_status = {c["cluster_id"]: "pending" for c in summaries}
+                for e in reg.clusters["approved"]:
+                    registry_status[e["cluster_id"]] = "approved"
+                for e in reg.clusters["deferred"]:
+                    registry_status[e["cluster_id"]] = "deferred"
+                for e in reg.clusters["rejected"]:
+                    registry_status[e["cluster_id"]] = "rejected"
+    else:
+        console.print("[bold green]All clusters have been reviewed![/bold green]\n")
+
+    # Final summary
+    console.print(f"\n[bold]Summary:[/bold]")
+    console.print(f"  Approved: {len(reg.clusters['approved'])}")
+    console.print(f"  Deferred: {len(reg.clusters['deferred'])}")
+    console.print(f"  Rejected: {len(reg.clusters['rejected'])}")
+    console.print(f"  Rounds completed: {reg.rounds_completed}")
+    console.print(f"  Automation: {'enabled' if reg.automation_enabled else 'disabled'}\n")
+
+    console.print("Proceed to Phase 6: /gsd:execute-phase 6")
 
 
 if __name__ == "__main__":
