@@ -60,8 +60,8 @@ Format: `[CATEGORY]-[NUMBER]` (e.g., PARSE-01, ENRICH-03)
 - [ ] **REVIEW-03**: Support per-cluster actions: approve, reject, rename, merge with another cluster, split
 - [ ] **REVIEW-04**: Batch actions: approve all clusters with >N members and confident names
 - [ ] **REVIEW-05**: Allow deferring a cluster without blocking others ("not sure yet")
-- [ ] **REVIEW-06**: Present cluster size distribution before review; warn if heavily skewed to small clusters
-- [ ] **REVIEW-07**: After N approved rounds (configurable), offer to enable full automation mode
+- [x] **REVIEW-06**: Present cluster size distribution before review; warn if heavily skewed to small clusters
+- [x] **REVIEW-07**: After N approved rounds (configurable), offer to enable full automation mode
 
 ### LIST — X API List Creation
 
