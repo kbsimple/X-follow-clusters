@@ -12,61 +12,60 @@ Transform a flat following list into organized, named X API lists that make it e
 
 ### Validated
 
-- [x] Parse `following.js` from X data archive export — Phase 01
-- [x] X API authentication setup — Phase 01
-- [x] X API profile enrichment with caching, rate limiting, and error handling — Phase 02
-- [x] Profile page scraping for supplemental fields (curl_cffi + BeautifulSoup) — Phase 03
-- [x] Semi-automated clustering: interactive review CLI with approve/reject/rename/merge/split/defer actions — Phase 05
-- [x] Enable full automation mode after user approves a few clustering rounds — Phase 05
+- ✓ Parse `following.js` from X data archive export — Phase 1
+- ✓ X API authentication setup (OAuth 1.0a via tweepy) — Phase 1
+- ✓ X API profile enrichment with caching, rate limiting, and error handling — Phase 2
+- ✓ Profile page scraping for supplemental fields (curl_cffi + BeautifulSoup) — Phase 3
+- ✓ Bio text embeddings via `sentence-transformers` (`all-MiniLM-L6-v2`) — Phase 4
+- ✓ Semi-supervised K-Means clustering with seed anchoring — Phase 4
+- ✓ LLM-generated cluster names (GPT-4o-mini / Claude Haiku / rule-based fallback) — Phase 4
+- ✓ Interactive review CLI with approve/reject/rename/merge/split/defer — Phase 5
+- ✓ Batch approve for high-quality clusters (size≥10, silhouette≥0.5) — Phase 5
+- ✓ Automation mode offer after N approved rounds — Phase 5
+- ✓ Native X API lists for approved clusters (5–50 members) — Phase 6
+- ✓ Data export to Parquet (followers) and CSV (clusters) — Phase 6
 
 ### Active
 
-- [ ] User-defined starter categories: Geographic (Bay Area, NYC, RI, etc.), Occupation (VC, Engineer, Financier), Political Action (campaigns, evangelism groups), Entertainment (sports, humor)
-- [ ] Discover additional categories beyond the starter set
-- [x] Create native X API lists for approved clusters (5–50 people per list) — Phase 06
+- [ ] Define next milestone requirements
 
 ### Out of Scope
 
 - Real-time monitoring or notifications — one-time (or on-demand) run only
 - Posting or interacting with lists — read/creation only
 - Integrating with other social platforms — X only
-- Creating lists directly in the X app — API-only list creation
+- Auto-follow on list add — creeps users out; violates trust
+- TF-IDF-only clustering — poor quality on short bios
+- Bot/fake account detection — v2 candidate
+- Account activity scoring — v2 candidate
+- Network-based clustering — v2 candidate
 
 ## Context
 
-- User follows hundreds of people on X
-- [ ] API credentials obtained and configured (Phase 01 completed auth module)
-- Input file is `data/following.js` from a personal X data archive (JSON wrapped in JS assignment)
-- Lists should be 5–50 people each; multiple people can belong to multiple lists
-- User wants to review cluster quality before lists are created
-- Full automation is a goal after initial review rounds build confidence
-
-## Constraints
-
-- **Tech Stack**: Python
-- **Output**: Native X API lists (intermediate files allowed, final output must be X API lists)
-- **Data Collection**: Rich profile data via X API + profile page scraping (not just basic API fields)
-- **API Credentials**: X API authentication not yet obtained — must be factored into implementation plan
+- **Status:** v1.0 MVP shipped (2026-04-06)
+- **Tech stack:** Python, tweepy, sentence-transformers, scikit-learn, beautifulsoup4, curl_cffi, pandas, pyarrow, rich, questionary
+- **Lines of code:** ~16,500 Python across 95 files
+- **X API credentials:** Not yet obtained — user needs to configure
+- **Input:** `data/following.js` from personal X data archive
+- **Output:** Native X API lists (5–50 people), Parquet + CSV exports
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Semi-automated clustering | User wants review/approval before lists are created | — Validated (Phase 05) |
-| Rich profile data (API + scraping) | Maximize information for accurate clustering | — Pending |
-| X API lists as final output | User wants native X app lists, not a separate tool | — Validated (Phase 06) |
-| Python | User-specified tech stack | — Pending |
+| Semi-automated clustering | User wants review/approval before lists are created | ✅ Validated |
+| NLP clustering (not keyword) | Transformer embeddings outperform TF-IDF on short bios | ✅ Validated |
+| Rich profile data (API + scraping) | Maximize information for accurate clustering | ✅ Validated |
+| X API lists as final output | User wants native X app lists, not a separate tool | ✅ Validated |
+| 5-50 people per cluster/list | User-specified; X API hard limit is 5,000 but user prefers smaller lists | ✅ Validated |
+| Private lists by default | User data is internal; public lists are noisy | ✅ Validated |
+| OpenAI preferred over Anthropic | Checked first when both API keys present | ✅ Validated |
+| Batch approve thresholds (size≥10, silhouette≥0.5) | High-quality clusters only for auto-approval | ✅ Validated |
+| Exponential backoff base=1s, max=300s | Avoid hammering API on 429; 300s cap prevents runaway waits | ✅ Validated |
 
 ## Evolution
 
 This document evolves at phase transitions and milestone boundaries.
-
-**After each phase transition** (via `/gsd:transition`):
-1. Requirements invalidated? → Move to Out of Scope with reason
-2. Requirements validated? → Move to Validated with phase reference
-3. New requirements emerged? → Add to Active
-4. Decisions to log? → Add to Key Decisions
-5. "What This Is" still accurate? → Update if drifted
 
 **After each milestone** (via `/gsd:complete-milestone`):
 1. Full review of all sections
@@ -75,4 +74,5 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-06 after Phase 06*
+
+*Last updated: 2026-04-06 after v1.0 milestone*
