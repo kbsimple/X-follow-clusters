@@ -119,6 +119,12 @@ Each task was committed atomically:
 - Approval registry schema stable: data/clusters/approved.json will be consumed by Phase 06 list creation
 - No blockers for next plans
 
+## Self-Check: PASSED
+
+All 5 commits verified in git history. All 5 key files exist on disk:
+- src/review/__init__.py, src/review/registry.py, src/review/histogram.py, src/review/cli.py
+- .planning/phases/05-review-flow/05-01-SUMMARY.md
+
 ---
 *Phase: 05-review-flow*
 *Completed: 2026-04-06*
