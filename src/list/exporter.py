@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 EXPORT_DIR = Path("data/export")
 FOLLOWERS_PARQUET = EXPORT_DIR / "followers.parquet"
 CLUSTERS_CSV = EXPORT_DIR / "clusters.csv"
+ENRICHMENT_DIR = Path("data/enrichment")
 
 
 def export_clusters_to_csv() -> Path:
@@ -80,7 +81,8 @@ def export_clusters_to_csv() -> Path:
             "central_member_usernames": central_str,
         })
 
-    df = pd.DataFrame(rows)
+    columns = ["cluster_id", "cluster_name", "status", "size", "silhouette", "member_handles", "central_member_usernames"]
+    df = pd.DataFrame(rows, columns=columns)
     df.to_csv(CLUSTERS_CSV, index=False)
     logger.info("Exported %d clusters to %s", len(rows), CLUSTERS_CSV)
     return CLUSTERS_CSV
@@ -105,7 +107,7 @@ def export_followers_to_parquet() -> Path:
     """
     EXPORT_DIR.mkdir(parents=True, exist_ok=True)
 
-    enrichment_dir = Path("data/enrichment")
+    enrichment_dir = ENRICHMENT_DIR
     if not enrichment_dir.exists():
         raise RuntimeError(
             "No enrichment data found. Run Phase 4 clustering first."
