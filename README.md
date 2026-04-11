@@ -14,15 +14,21 @@ A Python tool that transforms a flat X (Twitter) following list into organized, 
 
 The workflow is semi-automated: the tool proposes clusters, you review and refine them, then the tool creates the lists. Full automation is available after you've established trust.
 
-## Prerequisites
+## Quick start (first time setup)
 
-- **Python >= 3.9**
-- **X API credentials** — not yet configured; see [Setup](#setup) below
-- **X data archive** — request your data at [X (Twitter) data archive](https://x.com/settings/your_x_data)
+This takes ~5 minutes if you already have your X data archive. If not, start with **Step 0**.
 
-## Setup
+### Step 0 — Export your following list from X
 
-### 1. Clone and install dependencies
+Before anything else, download your own data from X:
+
+1. Go to [x.com/settings/your_x_data](https://x.com/settings/your_x_data)
+2. Select **Request data archive**
+3. Wait for the email (can take up to 24 hours — do this first)
+4. Download and extract the archive
+5. Find `data/following.js` inside — this is your input file
+
+### Step 1 — Clone and install
 
 ```bash
 git clone <repository-url>
@@ -32,7 +38,13 @@ source .venv/bin/activate  # on Windows: .venv\Scripts\activate
 pip install -e .
 ```
 
-### 2. Configure X API credentials
+### Step 2 — Place your following.js
+
+```bash
+cp /path/to/your/X-data-archive/data/following.js data/following.js
+```
+
+### Step 3 — Configure X API credentials
 
 Copy the example env file and fill in your credentials from [developer.x.com](https://developer.x.com/en/docs/twitter-api/twitter-api-labs):
 
@@ -56,19 +68,13 @@ Verify credentials are working:
 python -c "from src.auth import get_auth, verify_credentials; verify_credentials(get_auth())"
 ```
 
-### 3. Place your following.js
-
-Copy your X data archive's `following.js` into the `data/` directory:
-
-```bash
-cp /path/to/your/X-data-archive/data/following.js data/following.js
-```
-
-### 4. (Optional) Configure seed accounts
+### Step 4 — (Optional) Configure seed accounts
 
 Edit `config/seed_accounts.yaml` with real usernames from your following list. These anchor the semi-supervised clustering. Run Phase 2 first to populate the enrichment cache, then replace placeholders with actual accounts from `data/enrichment/`.
 
-## Usage
+---
+
+## Phases
 
 Run each phase sequentially. Each phase is restartable — it skips accounts already processed.
 
