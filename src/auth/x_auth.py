@@ -50,20 +50,20 @@ class AuthError(Exception):
 
 @dataclass
 class XAuth:
-    """X API OAuth 1.0a credentials.
+    """X API OAuth 2.0 PKCE credentials.
 
     Attributes:
-        api_key: X API key (Consumer Key).
-        api_secret: X API secret (Consumer Secret).
-        access_token: OAuth access token.
-        access_token_secret: OAuth access token secret.
+        client_id: X API client ID (App ID).
+        client_secret: X API client secret (App Secret).
+        access_token: OAuth 2.0 access token (Bearer).
+        refresh_token: OAuth 2.0 refresh token.
         bearer_token: Bearer token for app-only auth (optional).
     """
 
-    api_key: str
-    api_secret: str
+    client_id: str
+    client_secret: str
     access_token: str
-    access_token_secret: str
+    refresh_token: str
     bearer_token: str | None = None
 
 
@@ -71,10 +71,10 @@ def get_auth() -> XAuth:
     """Load X API credentials from environment variables.
 
     Required environment variables:
-        X_API_KEY: X API key (Consumer Key)
-        X_API_SECRET: X API secret (Consumer Secret)
-        X_ACCESS_TOKEN: OAuth access token
-        X_ACCESS_TOKEN_SECRET: OAuth access token secret
+        X_CLIENT_ID: X API client ID (App ID)
+        X_CLIENT_SECRET: X API client secret (App Secret)
+        X_ACCESS_TOKEN: OAuth 2.0 access token
+        X_REFRESH_TOKEN: OAuth 2.0 refresh token
 
     Optional:
         X_BEARER_TOKEN: Bearer token for app-only authentication
@@ -83,34 +83,30 @@ def get_auth() -> XAuth:
         XAuth instance populated with credentials.
 
     Raises:
-        AuthError: If any required environment variable is missing.
+        AuthError: If X_CLIENT_ID or X_CLIENT_SECRET is missing.
     """
-    missing: list[str] = []
-    api_key = os.environ.get("X_API_KEY")
-    api_secret = os.environ.get("X_API_SECRET")
+    client_id = os.environ.get("X_CLIENT_ID")
+    client_secret = os.environ.get("X_CLIENT_SECRET")
     access_token = os.environ.get("X_ACCESS_TOKEN")
-    access_token_secret = os.environ.get("X_ACCESS_TOKEN_SECRET")
+    refresh_token = os.environ.get("X_REFRESH_TOKEN")
     bearer_token = os.environ.get("X_BEARER_TOKEN")
 
-    if not api_key:
-        missing.append("X_API_KEY")
-    if not api_secret:
-        missing.append("X_API_SECRET")
-    if not access_token:
-        missing.append("X_ACCESS_TOKEN")
-    if not access_token_secret:
-        missing.append("X_ACCESS_TOKEN_SECRET")
-
-    if missing:
+    if not client_id:
         raise AuthError(
-            f"Missing required X API environment variables: {', '.join(missing)}"
+            "Missing required X API environment variable: X_CLIENT_ID"
+        )
+    if not client_secret:
+        raise AuthError(
+            "Missing required X API environment variable: X_CLIENT_SECRET"
         )
 
+    # access_token may be absent during first-run OAuth flow
+    # refresh_token may also be absent initially
     return XAuth(
-        api_key=api_key,
-        api_secret=api_secret,
-        access_token=access_token,
-        access_token_secret=access_token_secret,
+        client_id=client_id,
+        client_secret=client_secret,
+        access_token=access_token or "",
+        refresh_token=refresh_token or "",
         bearer_token=bearer_token,
     )
 
@@ -118,7 +114,7 @@ def get_auth() -> XAuth:
 def verify_credentials(auth: XAuth) -> dict[str, Any]:
     """Verify X API credentials by calling GET /2/users/me.
 
-    Creates a tweepy Client using OAuth1UserHandler and calls the
+    Creates a tweepy Client using the OAuth 2.0 access token and calls the
     /2/users/me endpoint to confirm credentials are valid.
 
     Args:
@@ -130,13 +126,7 @@ def verify_credentials(auth: XAuth) -> dict[str, Any]:
     Raises:
         AuthError: If credentials are invalid (401) or rate limited (429).
     """
-    client = tweepy.Client(
-        consumer_key=auth.api_key,
-        consumer_secret=auth.api_secret,
-        access_token=auth.access_token,
-        access_token_secret=auth.access_token_secret,
-        bearer_token=auth.bearer_token,
-    )
+    client = tweepy.Client(bearer_token=auth.bearer_token or auth.access_token)
 
     try:
         response = client.get_me()
