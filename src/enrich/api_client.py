@@ -89,14 +89,11 @@ class XEnrichmentClient:
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.backoff = backoff or ExponentialBackoff()
 
-        # Create tweepy Client with OAuth 1.0a (user context = 900 req/15min)
+        # Create tweepy Client with OAuth 2.0 Bearer token (app-only = 450 req/15min,
+        # user context = 900 req/15min when using access_token as bearer)
         # wait_on_rate_limit=False so we handle 429s ourselves
         self._client = tweepy.Client(
-            consumer_key=auth.api_key,
-            consumer_secret=auth.api_secret,
-            access_token=auth.access_token,
-            access_token_secret=auth.access_token_secret,
-            bearer_token=auth.bearer_token,
+            bearer_token=auth.access_token,
             wait_on_rate_limit=False,
             return_type=requests.Response,  # Required for rate limit header access
         )
