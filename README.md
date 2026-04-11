@@ -46,7 +46,11 @@ cp /path/to/your/X-data-archive/data/following.js data/following.js
 
 ### Step 3 — Configure X API credentials
 
-Copy the example env file and fill in your credentials from [developer.x.com](https://developer.x.com/en/docs/twitter-api/twitter-api-labs):
+This project uses **OAuth 2.0 with PKCE** for authentication. Unlike OAuth 1.0a, you only need a Client ID and Client Secret — no per-user access tokens to manage.
+
+1. Create an X Developer App at [developer.x.com](https://developer.x.com/en/docs/twitter-api/twitter-api-labs)
+2. Enable **OAuth 2.0** in your app settings and set the callback URL to `http://127.0.0.1:8080/callback`
+3. Copy the example env file and fill in your credentials:
 
 ```bash
 cp .env.example .env
@@ -55,12 +59,33 @@ cp .env.example .env
 Edit `.env`:
 
 ```env
-X_API_KEY=your_api_key
-X_API_SECRET=your_api_secret
-X_ACCESS_TOKEN=your_access_token
-X_ACCESS_TOKEN_SECRET=your_access_token_secret
-X_BEARER_TOKEN=your_bearer_token  # optional
+X_CLIENT_ID=your_client_id
+X_CLIENT_SECRET=your_client_secret
+X_BEARER_TOKEN=your_bearer_token  # optional, for read-only fallback
 ```
+
+#### First-run authorization
+
+OAuth 2.0 PKCE uses a browser-based authorization flow. On first run, the tool will open an authorization URL in your browser:
+
+```bash
+python -m src.main
+```
+
+The tool will print a URL like:
+```
+Open this URL in your browser to authorize:
+https://auth.x.com/oauth2/authorize?...
+```
+
+1. Open the URL in your browser
+2. Sign in to X and authorize the application
+3. The tool will automatically capture the callback and store tokens
+4. Tokens are saved to `data/tokens.json` for future runs
+
+Subsequent runs use the stored tokens automatically. The `offline.access` scope is used to obtain long-lived refresh tokens that persist across sessions.
+
+**Note:** If you close the tool before authorization completes, simply run it again to get a fresh authorization URL.
 
 Verify credentials are working:
 
@@ -144,13 +169,15 @@ following.js → parse → enrich → scrape → cluster → review → X API li
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `X_API_KEY` | Yes | X API Consumer Key |
-| `X_API_SECRET` | Yes | X API Consumer Secret |
-| `X_ACCESS_TOKEN` | Yes | OAuth 1.0a Access Token |
-| `X_ACCESS_TOKEN_SECRET` | Yes | OAuth 1.0a Access Token Secret |
-| `X_BEARER_TOKEN` | No | Bearer token for app-only auth |
+| `X_CLIENT_ID` | Yes | OAuth 2.0 Client ID (from X Developer Portal) |
+| `X_CLIENT_SECRET` | Yes | OAuth 2.0 Client Secret |
+| `X_ACCESS_TOKEN` | No | OAuth 2.0 access token (set automatically after first-run auth, stored in `data/tokens.json`) |
+| `X_REFRESH_TOKEN` | No | OAuth 2.0 refresh token (set automatically after first-run auth, stored in `data/tokens.json`) |
+| `X_BEARER_TOKEN` | No | Bearer token for app-only auth (read-only fallback) |
 | `OPENAI_API_KEY` | No | LLM cluster naming (GPT-4o-mini) |
 | `ANTHROPIC_API_KEY` | No | LLM cluster naming (Claude Haiku) |
+
+**Note:** This project previously used OAuth 1.0a. The credentials (`X_API_KEY`, `X_API_SECRET`, `X_ACCESS_TOKEN`, `X_ACCESS_TOKEN_SECRET`) are no longer used. If you have an existing OAuth 1.0a setup, you must obtain new OAuth 2.0 credentials from the X Developer Portal and re-authorize using the first-run flow above.
 
 ### Seed accounts (`config/seed_accounts.yaml`)
 
