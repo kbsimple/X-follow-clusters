@@ -1,30 +1,30 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: MVP
+milestone: v1.1
+milestone_name: OAuth 2.0 Upgrade
 current_phase: none
-status: milestone_complete
-last_updated: "2026-04-06T00:00:00.000Z"
+status: phase_complete
+last_updated: "2026-04-11"
 progress:
-  total_phases: 6
-  completed_phases: 6
-  total_plans: 12
-  completed_plans: 12
+  total_phases: 7
+  completed_phases: 7
+  total_plans: 18
+  completed_plans: 18
 ---
 
 # STATE: X Following Organizer
 
 **Project:** X Following Organizer
 **Core Value:** Transform a flat X following list into organized, named X API lists
-**Milestone:** v1.0 MVP — SHIPPED 2026-04-06
+**Milestone:** v1.1 OAuth 2.0 Upgrade — Phase 7 COMPLETE
 
 ---
 
 ## Current Position
 
-**Status:** Milestone complete. Ready for next milestone.
+**Status:** Phase complete. Ready for next milestone or verification.
 
-No active phase. Run `/gsd:new-milestone` to start the next milestone.
+Run `/gsd-verify-work` to verify Phase 7, or `/gsd-next` to advance.
 
 ---
 
@@ -33,7 +33,7 @@ No active phase. Run `/gsd:new-milestone` to start the next milestone.
 See: .planning/PROJECT.md (updated 2026-04-06 after v1.0 milestone)
 
 **Core value:** Transform a flat following list into organized, named X API lists
-**Current focus:** Define next milestone scope and requirements
+**Current focus:** Phase 7 (OAuth 2.0 PKCE upgrade) — complete
 
 ---
 
@@ -41,15 +41,20 @@ See: .planning/PROJECT.md (updated 2026-04-06 after v1.0 milestone)
 
 | Metric | Value |
 |--------|-------|
-| Total Phases | 6 |
-| Plans Completed | 12 / 12 |
-| Files changed | 95 |
-| Lines of code | ~16,540 |
+| Total Phases | 7 |
+| Plans Completed | 18 / 18 |
+| Files changed | ~100 |
+| Lines of code | ~17,000 |
 | Milestones shipped | 1 |
 
 ---
 
 ## Accumulated Context
+
+### Roadmap Evolution
+
+- Phase 7 added: Upgrade OAuth 1.0a to OAuth 2.0 PKCE
+- Phase 7 complete: All 6 plans executed (OAuth 2.0 PKCE upgrade complete)
 
 ### Decisions Made
 
@@ -64,24 +69,8 @@ See: .planning/PROJECT.md (updated 2026-04-06 after v1.0 milestone)
 | OpenAI preferred over Anthropic | Checked first when both keys present | ✅ Validated |
 | Batch approve: size≥10, silhouette≥0.5 | High-quality clusters only | ✅ Validated |
 | Exponential backoff base=1s, max=300s | Avoid 429; cap prevents runaway waits | ✅ Validated |
-
-### Open Items
-
-| Item | Status |
-|------|--------|
-| X API credentials not yet configured | Open — needed for Phases 2, 6 |
-| seed_accounts.yaml placeholders | Open — replace with real usernames before production |
-| No live API integration tests | Tech debt — mock tests only |
+| OAuth 2.0 PKCE | Refresh tokens, higher rate limits, better security | ✅ Implemented |
 
 ---
 
-## Session Continuity
-
-This file is the project memory. It is updated at:
-- Phase transitions (`/gsd:transition`)
-- Milestone completions (`/gsd:complete-milestone`)
-- When blockers or decisions change
-
----
-
-*Last updated: 2026-04-06 after v1.0 milestone completion*
+*Last updated: 2026-04-11 after Phase 7 completion*
