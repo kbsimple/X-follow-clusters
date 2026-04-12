@@ -20,12 +20,15 @@ import logging
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import requests
 import tweepy
 
 from src.enrich.rate_limiter import ExponentialBackoff, RateLimitError
+
+if TYPE_CHECKING:
+    from src.enrich.tweet_cache import TweetCache
 
 logger = logging.getLogger(__name__)
 
@@ -213,48 +216,108 @@ class XEnrichmentClient:
         self,
         user_id: str,
         max_tweets: int = 50,
+        tweet_cache: TweetCache | None = None,
     ) -> list[dict[str, Any]]:
-        """Fetch recent tweets for a user with pagination support.
+        """Fetch recent tweets with optional cache-first logic.
+
+        If tweet_cache is provided:
+        1. Check cache for existing tweets (cache hit returns immediately)
+        2. Get newest tweet ID as since_id watermark
+        3. Fetch only new tweets from API (not full timeline)
+        4. Persist new tweets to cache
+        5. Return merged list
+
+        If tweet_cache is None, original behavior (no caching).
 
         Args:
             user_id: X user ID.
-            max_tweets: Maximum tweets to fetch (default 50).
+            max_tweets: Maximum tweets to return (default 50).
+            tweet_cache: Optional TweetCache for cache-first logic.
 
         Returns:
-            List of tweet dicts with 'text' and 'created_at' fields.
+            List of tweet dicts with 'id', 'text', 'created_at' fields.
+        """
+        if tweet_cache is None:
+            # Original behavior - no caching
+            return self._fetch_tweets_from_api(user_id, max_tweets)
+
+        # Cache-first logic
+        cached_result = tweet_cache.load_tweets(user_id)
+
+        if cached_result.count >= max_tweets:
+            # Cache hit - return cached tweets, no API call
+            logger.debug("Cache hit for %s: %d tweets", user_id, cached_result.count)
+            return cached_result.tweets[:max_tweets]
+
+        # Cache miss or partial - fetch only new tweets
+        since_id = tweet_cache.get_newest_tweet_id(user_id)
+
+        new_tweets = self._fetch_tweets_from_api(
+            user_id,
+            max_tweets - cached_result.count,  # Only fetch what we need
+            since_id=since_id,
+        )
+
+        if new_tweets:
+            inserted = tweet_cache.persist_tweets(user_id, new_tweets)
+            logger.debug("Persisted %d new tweets for %s", inserted, user_id)
+
+        # Return merged: new tweets first (most recent), then cached
+        all_tweets = new_tweets + cached_result.tweets
+        return all_tweets[:max_tweets]
+
+    def _fetch_tweets_from_api(
+        self,
+        user_id: str,
+        max_tweets: int,
+        since_id: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Fetch tweets from X API with optional since_id watermark.
+
+        Args:
+            user_id: X user ID.
+            max_tweets: Maximum tweets to fetch.
+            since_id: Optional watermark - fetch tweets newer than this ID (EXCLUSIVE).
+
+        Returns:
+            List of tweet dicts from API.
         """
         all_tweets: list[dict[str, Any]] = []
         next_token: str | None = None
 
         try:
             while len(all_tweets) < max_tweets:
-                # API allows 5-100 per call, use 100 for efficiency
                 max_results = min(100, max_tweets - len(all_tweets))
 
-                response = self._client.get_users_tweets(
-                    id=user_id,
-                    max_results=max_results,
-                    tweet_fields=["created_at", "public_metrics"],
-                    exclude=["retweets", "replies"],  # Just original tweets
-                    pagination_token=next_token if next_token else None,
-                )
+                # Build API call parameters
+                params: dict[str, Any] = {
+                    "id": user_id,
+                    "max_results": max_results,
+                    "tweet_fields": ["created_at", "public_metrics"],
+                    "exclude": ["retweets", "replies"],
+                }
+
+                # Add since_id for incremental fetch
+                if since_id:
+                    params["since_id"] = since_id  # EXCLUSIVE - returns tweets > since_id
+
+                if next_token:
+                    params["pagination_token"] = next_token
+
+                response = self._client.get_users_tweets(**params)
                 body = response.json()
 
-                # Accumulate tweets from this page
                 page_tweets = body.get("data") or []
                 all_tweets.extend(page_tweets)
 
-                # Check for next page
                 meta = body.get("meta") or {}
                 next_token = meta.get("next_token")
 
-                # Stop if no more pages or we have enough tweets
                 if not next_token or len(all_tweets) >= max_tweets:
                     break
 
-            # Trim to exact max_tweets requested
             return all_tweets[:max_tweets]
 
         except Exception as e:
             logger.warning("Failed to fetch tweets for %s: %s", user_id, e)
-            return all_tweets  # Return what we collected before the error
+            return all_tweets

@@ -547,7 +547,8 @@ class TestIncrementalFetch:
 
             # Verify new tweets come first
             assert result[0]["id"] == "new_recent"
-            assert result[1]["id"] == "cached_old"
+            # Cached tweets have 'tweet_id' key from database schema
+            assert result[1]["tweet_id"] == "cached_old"
 
     def test_empty_api_response_returns_cached_gracefully(
         self, temp_tweet_cache: TweetCache
@@ -577,4 +578,5 @@ class TestIncrementalFetch:
 
             # Verify cached tweets returned without error
             assert len(result) == 1
-            assert result[0]["id"] == "cached_tweet"
+            # Cached tweets have 'tweet_id' key from database schema
+            assert result[0]["tweet_id"] == "cached_tweet"
