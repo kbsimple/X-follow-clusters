@@ -52,11 +52,11 @@ v1.2: Caching API Calls
 | Metric | Value |
 |--------|-------|
 | Total Phases | 11 (8 shipped, 3 planned) |
-| Plans Completed | 18 / 25 |
-| Files changed | ~105 |
-| Lines of code | ~18,500 |
+| Plans Completed | 21 / 25 |
+| Files changed | ~110 |
+| Lines of code | ~19,200 |
 | Milestones shipped | 2 (v1.0 MVP, v1.1 OAuth+3scrape) |
-| Tests | 59 passing |
+| Tests | 67 passing |
 
 ---
 
@@ -74,10 +74,10 @@ v1.2: Caching API Calls
 
 | Decision | Rationale | Status |
 |----------|-----------|--------|
-| SQLite for tweet storage | Zero dependencies, PRIMARY KEY deduplication, indexed queries | ✅ Planned |
-| Tweet ID as TEXT storage | X snowflake IDs are 64-bit; prevent precision loss | ✅ Planned |
-| Separate tweets.db database | Enables efficient accumulation vs embedding in account JSON | ✅ Planned |
-| since_id incremental fetch | Reduces API quota usage by 90%+ on subsequent runs | ✅ Planned |
+| SQLite for tweet storage | Zero dependencies, PRIMARY KEY deduplication, indexed queries | Implemented |
+| Tweet ID as TEXT storage | X snowflake IDs are 64-bit; prevent precision loss | Implemented |
+| Separate tweets.db database | Enables efficient accumulation vs embedding in account JSON | Implemented |
+| since_id incremental fetch | Reduces API quota usage by 90%+ on subsequent runs | Implemented |
 
 ### Technical Debt
 
