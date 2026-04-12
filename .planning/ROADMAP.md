@@ -59,10 +59,10 @@ Plans:
 3. On cache miss, only new tweets fetched via `since_id` parameter (not full timeline)
 4. XEnrichmentClient.get_recent_tweets() delegates to TweetCache for cache-first logic
 
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 Plans:
-- [ ] 10-01-PLAN.md — Add get_newest_tweet_id method to TweetCache for watermark tracking
+- [x] 10-01-PLAN.md — Add get_newest_tweet_id method to TweetCache for watermark tracking
 - [ ] 10-02-PLAN.md — Modify get_recent_tweets with cache-first logic and since_id integration
 
 ---
@@ -91,7 +91,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 9. TweetCache Core | 1/1 | Complete | 2026-04-12 |
-| 10. Incremental Fetch | 0/2 | Planned | - |
+| 10. Incremental Fetch | 1/2 | In Progress|  |
 | 11. Accumulation & Integration | 0/3 | Not started | - |
 
 ---
