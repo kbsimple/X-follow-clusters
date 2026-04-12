@@ -76,6 +76,17 @@ def main() -> int:
     Returns:
         0 on success, 1 on error.
     """
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Test driver for enrichment pipeline")
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=5,
+        help="Number of accounts to enrich (default: 5)",
+    )
+    args = parser.parse_args()
+
     print("=" * 60)
     print("Enrichment Test Driver")
     print("=" * 60)
@@ -142,7 +153,7 @@ def main() -> int:
         return 0
 
     # Step 6: Select sample of uncached accounts
-    sample_size = 5
+    sample_size = args.limit
     sample_ids = uncached_list[:sample_size]
 
     print(f"\n[Step 6] Selecting {len(sample_ids)} uncached accounts for enrichment:")
