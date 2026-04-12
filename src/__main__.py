@@ -7,9 +7,12 @@ Orchestrates the full pipeline. Use --help to see available phases.
 
 from __future__ import annotations
 
+# Must be set before any OAuth library imports (requests-oauthlib enforces HTTPS by default)
+import os
+os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
+
 import argparse
 import logging
-import os
 import sys
 from pathlib import Path
 

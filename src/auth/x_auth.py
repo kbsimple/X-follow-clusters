@@ -223,10 +223,7 @@ def exchange_code_for_token(code: str) -> tuple[str, str]:
         )
     logger.info("Exchanging authorization code for access token…")
     try:
-        access_token = _oauth2_handler.fetch_token(
-            authorization_response=code,
-            timeout=30,  # 30s timeout on token endpoint call
-        )
+        access_token = _oauth2_handler.fetch_token(authorization_response=code)
         logger.info("Access token received.")
     except requests.exceptions.Timeout:
         logger.error("Token exchange timed out after 30 seconds.")
