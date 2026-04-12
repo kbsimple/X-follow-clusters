@@ -379,7 +379,6 @@ def ensure_authenticated() -> XAuth:
 
     logger.info("Waiting for OAuth callback on port 8080…")
     code = wait_for_callback()
-    print("Authorization code received. Exchanging for tokens…", flush=True)
     logger.info("Authorization code received. Exchanging for tokens…")
     access_token, refresh_token = exchange_code_for_token(code)
     save_tokens(access_token, refresh_token)
