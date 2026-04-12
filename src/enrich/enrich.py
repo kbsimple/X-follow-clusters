@@ -71,12 +71,14 @@ def _chunked(lst: list, size: int) -> list[list]:
 def enrich_all(
     following_path: str | Path = Path("data/following.js"),
     cache_dir: str | Path = Path("data/enrichment"),
+    max_accounts: int | None = None,
 ) -> EnrichmentResult:
     """Enrich all accounts from following.js.
 
     Args:
         following_path: Path to the following.js file.
         cache_dir: Directory for cached enrichment JSON files.
+        max_accounts: Maximum number of accounts to process. If None, processes all.
 
     Returns:
         EnrichmentResult with counts and tracking lists.
@@ -100,6 +102,12 @@ def enrich_all(
     records = parse_following_js(following_path)
     logger.info("Parsed %d accounts from following.js", len(records))
     total = len(records)
+
+    # 2a. Limit to max_accounts if specified
+    if max_accounts is not None and max_accounts > 0:
+        records = records[:max_accounts]
+        logger.info("Limiting to %d accounts (of %d total)", len(records), total)
+        total = len(records)
 
     # 3. Set up client with custom backoff
     backoff = ExponentialBackoff(base=1.0, max_delay=300.0)
@@ -246,10 +254,20 @@ def main() -> int:
         default=Path("data/enrichment"),
         help="Path to cache directory (default: data/enrichment)",
     )
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        help="Maximum accounts to process (default: all)",
+    )
     args = parser.parse_args()
 
     try:
-        result = enrich_all(following_path=args.input, cache_dir=args.output)
+        result = enrich_all(
+            following_path=args.input,
+            cache_dir=args.output,
+            max_accounts=args.limit,
+        )
         print(
             f"Enrichment complete: {result.enriched}/{result.total} enriched, "
             f"{result.suspended} suspended, {result.protected} protected, "
