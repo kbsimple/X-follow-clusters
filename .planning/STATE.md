@@ -116,7 +116,8 @@ All 59 tests passing. All commits on master branch (32 unpushed).
 | 260412-g8m | Create enrichment test driver script with .env loading and progress output | 2026-04-12 | 9fa5bdb | [260412-g8m-create-enrichment-test-driver-script-wit](./quick/260412-g8m-create-enrichment-test-driver-script-wit/) |
 | 260412-gdy | Update test_enrich.py with verbose output showing inputs, processing, and results | 2026-04-12 | 270468a | [260412-gdy-update-test-enrich-py-with-verbose-outpu](./quick/260412-gdy-update-test-enrich-py-with-verbose-outpu/) |
 | 260412-gi7 | Prioritize accounts needing scraping in test_enrich.py | 2026-04-12 | 0b83abc | [260412-gi7-prioritize-accounts-needing-scraping-in-](./quick/260412-gi7-prioritize-accounts-needing-scraping-in-/) |
+| 260412-gnd | Remove needs_scraping concept from test_enrich.py | 2026-04-12 | 7de0dec | [260412-gnd-remove-needs-scraping-concept-from-test-](./quick/260412-gnd-remove-needs-scraping-concept-from-test-/) |
 
 ---
 
-*Last updated: 2026-04-12 - Completed quick task 260412-gi7: Prioritize accounts needing scraping in test_enrich.py*
+*Last updated: 2026-04-12 - Completed quick task 260412-gnd: Remove needs_scraping concept from test_enrich.py*
