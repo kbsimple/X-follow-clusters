@@ -14,7 +14,6 @@ Usage:
 
 from __future__ import annotations
 
-import json
 import logging
 import sys
 from pathlib import Path
@@ -47,7 +46,6 @@ def print_enriched_profile(user: dict) -> None:
     metrics = user.get("public_metrics", {})
     verified = user.get("verified", False)
     protected = user.get("protected", False)
-    needs_scraping = user.get("needs_scraping", False)
 
     # Truncate bio if longer than 100 chars
     bio_display = bio[:100] + "..." if len(bio) > 100 else bio
@@ -66,7 +64,6 @@ def print_enriched_profile(user: dict) -> None:
     print(f"    │ Listed:         {metrics.get('listed_count', 0):,}")
     print(f"    │ Verified:       {verified}")
     print(f"    │ Protected:      {protected}")
-    print(f"    │ Needs Scraping: {needs_scraping}")
     print(f"    └─────────────────────────────────────────────────")
 
 
@@ -118,8 +115,6 @@ def main() -> int:
     cache_dir.mkdir(parents=True, exist_ok=True)
 
     cached_ids = set()
-    needs_scraping_ids = set()
-    needs_scraping_reasons = {}  # account_id -> reason string
 
     if cache_dir.exists():
         for cache_file in cache_dir.glob("*.json"):
@@ -127,29 +122,10 @@ def main() -> int:
             account_id = cache_file.stem
             cached_ids.add(account_id)
 
-            # Check if this account needs scraping
-            try:
-                cached_data = json.loads(cache_file.read_text())
-                if cached_data.get("needs_scraping", False):
-                    needs_scraping_ids.add(account_id)
-                    # Determine the reason
-                    has_bio = bool(cached_data.get("description"))
-                    has_location = bool(cached_data.get("location"))
-                    if not has_bio and not has_location:
-                        reason = "missing bio + location"
-                    elif not has_bio:
-                        reason = "missing bio"
-                    else:
-                        reason = "missing location"
-                    needs_scraping_reasons[account_id] = reason
-            except Exception:
-                pass  # Skip files we can't parse
-
     print(f"  Found {len(cached_ids)} cached accounts")
-    print(f"  Found {len(needs_scraping_ids)} cached accounts needing scraping")
 
-    # Step 5: Filter to uncached accounts and identify scraping-needy accounts
-    print("\n[Step 5] Identifying uncached accounts and accounts needing scraping...")
+    # Step 5: Filter to uncached accounts
+    print("\n[Step 5] Identifying uncached accounts...")
     all_ids = {r.account_id for r in records}
     uncached_ids = all_ids - cached_ids
     uncached_list = sorted(uncached_ids)
@@ -157,49 +133,18 @@ def main() -> int:
     print(f"  Total accounts in following.js: {len(all_ids)}")
     print(f"  Already cached: {len(cached_ids)}")
     print(f"  Need enrichment (uncached): {len(uncached_list)}")
-    print(f"  Need scraping (cached but incomplete): {len(needs_scraping_ids)}")
 
-    if needs_scraping_ids:
-        print(f"\n  Cached accounts needing scraping (missing bio/location):")
-        for aid in sorted(needs_scraping_ids):
-            reason = needs_scraping_reasons.get(aid, "unknown")
-            print(f"    - {aid}: {reason}")
-
-    if not uncached_list and not needs_scraping_ids:
-        print("\n  All accounts cached and complete. Nothing to process.")
+    if not uncached_list:
+        print("\n  All accounts cached. Nothing to process.")
         return 0
 
-    # Step 6: Select sample prioritizing: uncached -> needs_scraping -> others
+    # Step 6: Select sample of uncached accounts
     sample_size = 5
-    sample_ids = []
-    sample_info = {}  # account_id -> (status, reason)
+    sample_ids = uncached_list[:sample_size]
 
-    # First priority: uncached accounts
-    uncached_to_take = min(sample_size, len(uncached_list))
-    for aid in uncached_list[:uncached_to_take]:
-        sample_ids.append(aid)
-        sample_info[aid] = ("UNCACHED", None)
-
-    # Second priority: cached accounts needing scraping
-    if len(sample_ids) < sample_size:
-        remaining_slots = sample_size - len(sample_ids)
-        needs_scraping_list = sorted(needs_scraping_ids)
-        for aid in needs_scraping_list[:remaining_slots]:
-            if aid not in sample_ids:
-                sample_ids.append(aid)
-                reason = needs_scraping_reasons.get(aid, "unknown")
-                sample_info[aid] = ("NEEDS SCRAPING", reason)
-
-    print(f"\n[Step 6] Selecting {len(sample_ids)} accounts for processing (prioritizing scraping-needy):")
-    print("  Sample selection:")
+    print(f"\n[Step 6] Selecting {len(sample_ids)} uncached accounts for enrichment:")
     for aid in sample_ids:
-        status, reason = sample_info.get(aid, ("UNKNOWN", None))
-        if status == "UNCACHED":
-            print(f"    - {aid}: {status}")
-        elif status == "NEEDS SCRAPING":
-            print(f"    - {aid}: {status} ({reason})")
-        else:
-            print(f"    - {aid}: {status}")
+        print(f"    - {aid}")
 
     # Step 7: Create enrichment client and enrich
     print("\n[Step 7] Enriching accounts...")
