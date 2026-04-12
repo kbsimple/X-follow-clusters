@@ -75,7 +75,7 @@ python -m src.main
 The tool will print a URL like:
 ```
 Open this URL in your browser to authorize:
-https://auth.x.com/oauth2/authorize?...
+https://x.com/i/oauth2/authorize?...
 ```
 
 1. Open the URL in your browser
@@ -173,11 +173,13 @@ following.js → parse → enrich → scrape → cluster → review → X API li
 | `X_CLIENT_SECRET` | Yes | OAuth 2.0 Client Secret |
 | `X_ACCESS_TOKEN` | No | OAuth 2.0 access token (set automatically after first-run auth, stored in `data/tokens.json`) |
 | `X_REFRESH_TOKEN` | No | OAuth 2.0 refresh token (set automatically after first-run auth, stored in `data/tokens.json`) |
-| `X_BEARER_TOKEN` | No | Bearer token for app-only auth (read-only fallback) |
+| `X_BEARER_TOKEN` | No | Optional bearer token for read-only fallback when OAuth 2.0 tokens are unavailable |
 | `OPENAI_API_KEY` | No | LLM cluster naming (GPT-4o-mini) |
 | `ANTHROPIC_API_KEY` | No | LLM cluster naming (Claude Haiku) |
 
 **Note:** This project previously used OAuth 1.0a. The credentials (`X_API_KEY`, `X_API_SECRET`, `X_ACCESS_TOKEN`, `X_ACCESS_TOKEN_SECRET`) are no longer used. If you have an existing OAuth 1.0a setup, you must obtain new OAuth 2.0 credentials from the X Developer Portal and re-authorize using the first-run flow above.
+
+**OAuth 2.0 scopes used:** `tweet.read`, `users.read`, `list.read`, `list.write`, `offline.access`
 
 ### Seed accounts (`config/seed_accounts.yaml`)
 
