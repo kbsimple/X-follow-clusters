@@ -332,3 +332,54 @@ class TestTweetCacheDeduplication:
 
         result = temp_tweet_cache.load_tweets(user_id)
         assert result.tweets[0]["tweet_id"] == large_id
+
+
+class TestTweetCacheWatermark:
+    """Test TweetCache.get_newest_tweet_id method for watermark tracking."""
+
+    def test_get_newest_tweet_id_returns_none_for_empty_cache(
+        self, temp_tweet_cache: TweetCache
+    ) -> None:
+        """Test get_newest_tweet_id returns None for user with no cached tweets."""
+        result = temp_tweet_cache.get_newest_tweet_id("unknown_user")
+
+        assert result is None
+
+    def test_get_newest_tweet_id_returns_id_for_single_tweet(
+        self, temp_tweet_cache: TweetCache
+    ) -> None:
+        """Test get_newest_tweet_id returns correct ID for single cached tweet."""
+        user_id = "single_tweet_user"
+        temp_tweet_cache.persist_tweets(user_id, [SAMPLE_TWEET])
+
+        result = temp_tweet_cache.get_newest_tweet_id(user_id)
+
+        assert result == SAMPLE_TWEET["id"]
+
+    def test_get_newest_tweet_id_returns_newest_for_multiple_tweets(
+        self, temp_tweet_cache: TweetCache
+    ) -> None:
+        """Test get_newest_tweet_id returns newest ID when multiple tweets exist."""
+        user_id = "multi_tweet_user"
+        # SAMPLE_TWEET has created_at "2024-05-21T17:34:39.000Z" (newer)
+        # SAMPLE_TWEET_2 has created_at "2024-05-21T17:34:38.000Z" (older)
+        temp_tweet_cache.persist_tweets(user_id, [SAMPLE_TWEET, SAMPLE_TWEET_2])
+
+        result = temp_tweet_cache.get_newest_tweet_id(user_id)
+
+        # Should return the newest (SAMPLE_TWEET has later timestamp)
+        assert result == SAMPLE_TWEET["id"]
+
+    def test_get_newest_tweet_id_returns_newest_when_inserted_out_of_order(
+        self, temp_tweet_cache: TweetCache
+    ) -> None:
+        """Test get_newest_tweet_id returns newest even when tweets inserted out of order."""
+        user_id = "out_of_order_user"
+        # Insert older tweet first, newer tweet second
+        temp_tweet_cache.persist_tweets(user_id, [SAMPLE_TWEET_2])
+        temp_tweet_cache.persist_tweets(user_id, [SAMPLE_TWEET])
+
+        result = temp_tweet_cache.get_newest_tweet_id(user_id)
+
+        # Should still return the newest (SAMPLE_TWEET) regardless of insert order
+        assert result == SAMPLE_TWEET["id"]
