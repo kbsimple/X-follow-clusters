@@ -175,3 +175,28 @@ class TweetCache:
         conn.commit()
         conn.close()
         return inserted
+
+    def get_newest_tweet_id(self, user_id: str) -> str | None:
+        """Get the newest tweet ID for a user from cache.
+
+        Returns None if no tweets cached for this user.
+        Uses existing created_at DESC index for O(1) lookup.
+
+        Args:
+            user_id: X user ID.
+
+        Returns:
+            Newest tweet_id as string, or None if no tweets.
+        """
+        conn = sqlite3.connect(self.db_path)
+        result = conn.execute(
+            """
+            SELECT tweet_id FROM tweets
+            WHERE user_id = ?
+            ORDER BY created_at DESC
+            LIMIT 1
+        """,
+            (user_id,),
+        ).fetchone()
+        conn.close()
+        return result[0] if result else None
