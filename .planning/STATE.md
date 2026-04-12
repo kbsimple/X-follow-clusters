@@ -1,40 +1,39 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-status: executing
-last_updated: "2026-04-12T22:32:59.513Z"
+milestone: v1.2
+milestone_name: Caching API Calls
+status: planning
+last_updated: "2026-04-12T23:55:00.000Z"
 progress:
   total_phases: 3
   completed_phases: 2
   total_plans: 3
   completed_plans: 3
-  percent: 100
+  percent: 67
 ---
 
 # STATE: X Following Organizer
 
 **Project:** X Following Organizer
-**Core Value:** Transform a flat X following list into organized, named X API lists
+**Core Value:** Transform a flat following list into organized, named X API lists
 **Milestone:** v1.2 — Caching API Calls
-**Phase:** 10
+**Phase:** 11 (context captured, ready to plan)
 
 ---
 
 ## Current Position
 
-Phase: 10 (incremental-fetch) — COMPLETE
-Plan: 02 complete
-**Status:** Phase complete, ready for Phase 11
+Phase: 11 (Accumulation & Integration) — CONTEXT captured, ready to plan
+Plan: Not started
+**Status:** Ready to plan (research optional)
 
 **Progress:**
 
-[██████████] 100%
+```
 v1.2: Caching API Calls
-[x] Phase 9: TweetCache Core
-[x] Phase 10: Incremental Fetch (2/2 plans complete)
-[ ] Phase 11: Accumulation & Integration
-
+[x] Phase 9: TweetCache Core (COMPLETE)
+[x] Phase 10: Incremental Fetch (COMPLETE)
+[ ] Phase 11: Accumulation & Integration (CONTEXT captured)
 ```
 
 ---
@@ -43,7 +42,7 @@ v1.2: Caching API Calls
 
 **Core value:** Transform a flat following list into organized, named X API lists
 
-**Current focus:** Phase 09 — tweetcache-core
+**Current focus:** Phase 11 — Accumulation & Integration
 
 ---
 
@@ -64,9 +63,9 @@ v1.2: Caching API Calls
 
 ### Roadmap Evolution
 
-- Phase 11 added: Accumulation & Integration (merge logic, persistence, end-to-end validation)
-- Phase 10 added: Incremental Fetch (since_id watermarks, cache-first logic)
-- Phase 9 added: TweetCache Core (SQLite schema, cache read/write)
+- Phase 11 in progress: Accumulation & Integration (CONTEXT.md captured)
+- Phase 10 complete: Incremental Fetch (since_id watermarks, cache-first logic)
+- Phase 9 complete: TweetCache Core (SQLite schema, cache read/write)
 - Phase 8 complete: 3scrape pipeline shipped
 - Phase 7 complete: OAuth 2.0 PKCE upgrade shipped
 
@@ -78,12 +77,13 @@ v1.2: Caching API Calls
 | Tweet ID as TEXT storage | X snowflake IDs are 64-bit; prevent precision loss | Implemented |
 | Separate tweets.db database | Enables efficient accumulation vs embedding in account JSON | Implemented |
 | since_id incremental fetch | Reduces API quota usage by 90%+ on subsequent runs | Implemented |
+| Update account JSON on enrichment | embed.py reads recent_tweets_text from account JSON | Decided (Phase 11) |
+| Log and continue on embedding failure | Graceful degradation, retry on next run | Decided (Phase 11) |
 
 ### Technical Debt
 
 - seed_accounts.yaml uses placeholder usernames (Phase 4 debt, unresolved)
 - No live API integration tests (Phase 6 debt, unresolved)
-- 32 unpushed commits on master (git push pending)
 
 ### Active Blockers
 
@@ -93,10 +93,10 @@ None
 
 ## Session Continuity
 
-**Last session:** 2026-04-12 — Phase 10 complete (cache-first incremental fetch)
+**Last session:** 2026-04-12 — Phase 11 context captured, ready to plan
 
-**Next action:** Run `/gsd-next` to advance to Phase 11 (Accumulation & Integration)
+**Next action:** Run `/gsd-next` to resume — will prompt for research then spawn planner
 
 ---
 
-*Last updated: 2026-04-12 — Phase 10 complete*
+*Last updated: 2026-04-12 — Phase 11 context captured*
