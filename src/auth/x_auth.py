@@ -13,6 +13,7 @@ Usage:
 from __future__ import annotations
 
 import json
+import logging
 import os
 import threading
 import time
@@ -22,7 +23,10 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
+import requests
 import tweepy
+
+logger = logging.getLogger(__name__)
 
 
 class AuthError(Exception):
@@ -217,10 +221,26 @@ def exchange_code_for_token(code: str) -> tuple[str, str]:
         raise AuthError(
             "OAuth2UserHandler not initialized. Call get_authorization_url() first."
         )
-    access_token = _oauth2_handler.fetch_token(authorization_response=code)
+    logger.info("Exchanging authorization code for access token…")
+    try:
+        access_token = _oauth2_handler.fetch_token(
+            authorization_response=code,
+            timeout=30,  # 30s timeout on token endpoint call
+        )
+        logger.info("Access token received.")
+    except requests.exceptions.Timeout:
+        logger.error("Token exchange timed out after 30 seconds.")
+        raise AuthError("Token exchange timed out. X API may be slow or unreachable.")
+    except requests.exceptions.ConnectionError as e:
+        logger.error("Token exchange connection failed: %s", e)
+        raise AuthError(f"Token exchange connection failed: {e}")
+    except Exception as e:
+        logger.error("Token exchange failed: %s", e)
+        raise AuthError(f"Token exchange failed: {e}")
     # fetch_token returns the full token dict; extract access_token and refresh_token
     access_token_str = access_token.get("access_token", "") if isinstance(access_token, dict) else access_token
     refresh_token_str = _oauth2_handler.refresh_token or ""
+    logger.info("Refresh token: %s", "received" if refresh_token_str else "not received")
     return access_token_str, refresh_token_str
 
 
@@ -282,29 +302,34 @@ def wait_for_callback(port: int = 8080, timeout: int = 300) -> str:
                 if "code" in qs:
                     received_code[0] = qs["code"][0]
                     code_received.set()
+                    logger.info("Callback received. Authorization code captured.")
                     self.send_response(200)
                     self.send_header("Content-Type", "text/html")
                     self.end_headers()
                     self.wfile.write(b"<html><body>Authorization complete. You may close this window.</body></html>")
                 else:
+                    logger.warning("Callback received but no 'code' parameter found.")
                     self.send_response(400)
                     self.wfile.write(b"Missing code parameter")
             else:
                 self.send_response(404)
 
         def log_message(self, *args):
-            pass  # suppress logging
+            pass  # suppress default HTTP logging
 
+    logger.info("Starting OAuth callback server on port %d (timeout=%ds)…", port, timeout)
     server = HTTPServer(("127.0.0.1", port), CallbackHandler)
     thread = threading.Thread(target=server.handle_request)
     thread.start()
 
     if not code_received.wait(timeout):
         server.shutdown()
+        logger.error("OAuth callback timed out after %d seconds.", timeout)
         raise TimeoutError(f"No callback received within {timeout} seconds")
 
     server.shutdown()
     thread.join()
+    logger.info("Callback server shut down.")
     return received_code[0]
 
 
@@ -339,6 +364,7 @@ def ensure_authenticated() -> XAuth:
     tokens = load_tokens()
     if tokens:
         access_token, refresh_token = tokens
+        logger.info("Loaded stored tokens from data/tokens.json.")
         return XAuth(
             client_id=client_id,
             client_secret=client_secret,
@@ -347,13 +373,17 @@ def ensure_authenticated() -> XAuth:
         )
 
     # First-run: initiate OAuth 2.0 PKCE
-    print("No stored tokens found. Initiating OAuth 2.0 PKCE flow...")
+    logger.info("No stored tokens found. Initiating OAuth 2.0 PKCE flow.")
     auth_url = get_authorization_url(client_id, client_secret)
+    logger.info("Authorization URL generated.")
     print(f"Open this URL in your browser and authorize:\n{auth_url}")
 
+    logger.info("Waiting for OAuth callback on port 8080…")
     code = wait_for_callback()
+    logger.info("Authorization code received. Exchanging for tokens…")
     access_token, refresh_token = exchange_code_for_token(code)
     save_tokens(access_token, refresh_token)
+    logger.info("Tokens saved to data/tokens.json.")
 
     return XAuth(
         client_id=client_id,
