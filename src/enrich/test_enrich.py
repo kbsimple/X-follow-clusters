@@ -23,6 +23,7 @@ from dotenv import load_dotenv
 from src.auth.x_auth import ensure_authenticated
 from src.enrich.api_client import USER_FIELDS, XEnrichmentClient
 from src.parse.following_parser import parse_following_js
+from src.scrape import follow_account_links, extract_entities, google_lookup_account
 
 # Configure logging
 logging.basicConfig(
@@ -180,7 +181,65 @@ def main() -> int:
         print(f"  ERROR during enrichment: {e}")
         return 1
 
-    # Step 8: Print summary
+    # Build mapping of account_id -> username from enriched data
+    id_to_username: dict[str, str] = {}
+    for user in response.data:
+        user_id = user.get("id")
+        username = user.get("username", "unknown")
+        if user_id:
+            id_to_username[user_id] = username
+
+    # Step 8: Run 3scrape pipeline on newly enriched accounts
+    print("\n[Step 8] Running 3scrape pipeline on newly enriched accounts...")
+
+    link_followed_count = 0
+    entities_extracted_count = 0
+    google_looked_up_count = 0
+
+    for account_id in sample_ids:
+        username = id_to_username.get(account_id, account_id)
+        print(f"\n--- 3scrape: @{username} ({account_id}) ---")
+
+        # Link following
+        try:
+            link_result = follow_account_links(account_id, cache_dir=cache_dir)
+            if link_result:
+                external_bio_len = len(link_result.external_bio) if link_result.external_bio else 0
+                print(f"  Link following: external_bio={external_bio_len} chars, links_followed={link_result.links_followed}, pages_fetched={link_result.pages_fetched}")
+                if link_result.external_bio:
+                    link_followed_count += 1
+            else:
+                print("  Link following: no result (no website or error)")
+        except Exception as e:
+            print(f"  Link following: error - {e}")
+
+        # Entity extraction
+        try:
+            entity_result = extract_entities(account_id, cache_dir=cache_dir)
+            if entity_result:
+                print(f"  Entity extraction: orgs={entity_result.orgs}, locs={entity_result.locs}, titles={entity_result.titles}")
+                entities_extracted_count += 1
+            else:
+                print("  Entity extraction: no result (no bio data)")
+        except Exception as e:
+            print(f"  Entity extraction: error - {e}")
+
+        # Google lookup
+        try:
+            google_result = google_lookup_account(account_id, cache_dir=cache_dir)
+            if google_result:
+                snippet_preview = ""
+                if google_result.result_snippet:
+                    snippet_preview = google_result.result_snippet[:50] + "..." if len(google_result.result_snippet) > 50 else google_result.result_snippet
+                print(f"  Google lookup: title={google_result.result_title or 'None'}, snippet={snippet_preview or 'None'}")
+                if google_result.result_title:
+                    google_looked_up_count += 1
+            else:
+                print("  Google lookup: no result (no search needed or error)")
+        except Exception as e:
+            print(f"  Google lookup: error - {e}")
+
+    # Step 9: Print summary
     print("\n" + "=" * 60)
     print("SUMMARY")
     print("=" * 60)
@@ -188,6 +247,10 @@ def main() -> int:
     print(f"  Already cached:                    {len(cached_ids)}")
     print(f"  Newly enriched (this run):         {enriched_count}")
     print(f"  Errors:                            {error_count}")
+    print(f"\n  3scrape pipeline results:")
+    print(f"    Link followed:                   {link_followed_count}")
+    print(f"    Entities extracted:              {entities_extracted_count}")
+    print(f"    Google looked up:                {google_looked_up_count}")
 
     if errors:
         print("\n  Error details:")
