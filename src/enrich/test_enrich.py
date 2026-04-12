@@ -14,6 +14,7 @@ Usage:
 
 from __future__ import annotations
 
+import json
 import logging
 import sys
 from pathlib import Path
@@ -21,7 +22,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 from src.auth.x_auth import ensure_authenticated
-from src.enrich.api_client import XEnrichmentClient
+from src.enrich.api_client import USER_FIELDS, XEnrichmentClient
 from src.parse.following_parser import parse_following_js
 
 # Configure logging
@@ -30,6 +31,43 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
+
+
+def print_enriched_profile(user: dict) -> None:
+    """Print enriched profile data in a formatted block.
+
+    Args:
+        user: User dict from API response.
+    """
+    account_id = user.get("id", "unknown")
+    username = user.get("username", "unknown")
+    name = user.get("name", "unknown")
+    bio = user.get("description") or ""
+    location = user.get("location") or ""
+    metrics = user.get("public_metrics", {})
+    verified = user.get("verified", False)
+    protected = user.get("protected", False)
+    needs_scraping = user.get("needs_scraping", False)
+
+    # Truncate bio if longer than 100 chars
+    bio_display = bio[:100] + "..." if len(bio) > 100 else bio
+    if not bio_display:
+        bio_display = "(no bio)"
+
+    print(f"    ┌─────────────────────────────────────────────────")
+    print(f"    │ ID:             {account_id}")
+    print(f"    │ Username:       @{username}")
+    print(f"    │ Name:           {name}")
+    print(f"    │ Bio:            {bio_display}")
+    print(f"    │ Location:       {location or '(no location)'}")
+    print(f"    │ Followers:      {metrics.get('followers_count', 0):,}")
+    print(f"    │ Following:      {metrics.get('following_count', 0):,}")
+    print(f"    │ Tweets:         {metrics.get('tweet_count', 0):,}")
+    print(f"    │ Listed:         {metrics.get('listed_count', 0):,}")
+    print(f"    │ Verified:       {verified}")
+    print(f"    │ Protected:      {protected}")
+    print(f"    │ Needs Scraping: {needs_scraping}")
+    print(f"    └─────────────────────────────────────────────────")
 
 
 def main() -> int:
@@ -105,12 +143,30 @@ def main() -> int:
     sample_size = min(5, len(uncached_list))
     sample_ids = uncached_list[:sample_size]
     print(f"\n[Step 6] Taking first {sample_size} uncached accounts for enrichment:")
+    print("  Cache status for each account:")
     for aid in sample_ids:
-        print(f"    - {aid}")
+        cache_file = cache_dir / f"{aid}.json"
+        if cache_file.exists():
+            try:
+                cached_data = json.loads(cache_file.read_text())
+                username = cached_data.get("username", "unknown")
+                name = cached_data.get("name", "unknown")
+                has_bio = bool(cached_data.get("description"))
+                has_location = bool(cached_data.get("location"))
+                needs_scraping = cached_data.get("needs_scraping", False)
+                print(f"    - {aid}: CACHED @{username} ({name})")
+                print(f"        has_bio={has_bio}, has_location={has_location}, needs_scraping={needs_scraping}")
+            except Exception as e:
+                print(f"    - {aid}: CACHED (error reading: {e})")
+        else:
+            print(f"    - {aid}: NOT CACHED")
 
     # Step 7: Create enrichment client and enrich
     print("\n[Step 7] Enriching accounts...")
     client = XEnrichmentClient(auth, cache_dir=cache_dir)
+
+    # Show what fields are being requested
+    print(f"  Requesting fields: {USER_FIELDS}")
 
     enriched_count = 0
     error_count = 0
@@ -123,12 +179,10 @@ def main() -> int:
         enriched_count = len(response.data)
         error_count = len(response.errors)
 
-        # Print progress for each enriched account
+        # Print enriched profile data for each account
+        print("\n  Enriched profiles:")
         for user in response.data:
-            account_id = user.get("id", "unknown")
-            username = user.get("username", "unknown")
-            name = user.get("name", "unknown")
-            print(f"    + Enriched: {account_id} (@{username} - {name})")
+            print_enriched_profile(user)
 
         # Track errors
         for err in response.errors:
