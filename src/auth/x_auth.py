@@ -225,7 +225,10 @@ def exchange_code_for_token(code: str) -> tuple[str, str]:
         )
     logger.info("Exchanging authorization code for access token…")
     try:
-        access_token = _oauth2_handler.fetch_token(authorization_response=code)
+        # Pass full callback URL so fetch_token can validate CSRF state
+        access_token = _oauth2_handler.fetch_token(
+            authorization_response=f"http://127.0.0.1:8080{code}"
+        )
         logger.info("Access token received.")
     except requests.exceptions.Timeout:
         logger.error("Token exchange timed out after 30 seconds.")
@@ -277,7 +280,7 @@ def wait_for_callback(port: int = 8080, timeout: int = 300) -> str:
     """Start a temporary HTTP server to capture the OAuth callback code.
 
     Starts an HTTP server on 127.0.0.1:port that listens for a single
-    GET request to /callback?code=XXX, extracts the code parameter,
+    GET request to /callback?code=XXX&state=YYY, captures the full URL,
     and returns it. The server shuts down after the callback is received
     or after the timeout elapses.
 
@@ -286,7 +289,7 @@ def wait_for_callback(port: int = 8080, timeout: int = 300) -> str:
         timeout: Seconds to wait before raising TimeoutError. Defaults to 300.
 
     Returns:
-        The authorization code from the callback redirect.
+        The full callback URL path including query string (e.g. "/callback?code=...&state=...").
 
     Raises:
         TimeoutError: If no callback is received within the timeout period.
@@ -299,7 +302,8 @@ def wait_for_callback(port: int = 8080, timeout: int = 300) -> str:
             if self.path.startswith("/callback"):
                 qs = parse_qs(urlparse(self.path).query)
                 if "code" in qs:
-                    received_code[0] = qs["code"][0]
+                    # Store the full callback URL (with query string) for CSRF state validation
+                    received_code[0] = self.path
                     code_received.set()
                     logger.info("Callback received. Authorization code captured.")
                     self.send_response(200)
@@ -326,7 +330,7 @@ def wait_for_callback(port: int = 8080, timeout: int = 300) -> str:
         logger.error("OAuth callback timed out after %d seconds.", timeout)
         raise TimeoutError(f"No callback received within {timeout} seconds")
 
-    server.shutdown()
+    server.server_close()
     thread.join()
     logger.info("Callback server shut down.")
     return received_code[0]
