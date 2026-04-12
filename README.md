@@ -69,7 +69,7 @@ X_BEARER_TOKEN=your_bearer_token  # optional, for read-only fallback
 OAuth 2.0 PKCE uses a browser-based authorization flow. On first run, the tool will open an authorization URL in your browser:
 
 ```bash
-python -m src.main
+python -m src --auth-only
 ```
 
 The tool will print a URL like:

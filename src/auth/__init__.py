@@ -10,6 +10,7 @@ Exports:
 from src.auth.x_auth import (
     AuthError,
     XAuth,
+    ensure_authenticated,
     get_auth,
     verify_credentials,
 )
@@ -17,6 +18,7 @@ from src.auth.x_auth import (
 __all__ = [
     "AuthError",
     "XAuth",
+    "ensure_authenticated",
     "get_auth",
     "verify_credentials",
 ]
