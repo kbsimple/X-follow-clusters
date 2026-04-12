@@ -460,10 +460,10 @@ def compute_clusters(
     """
     if algorithm == "kmeans":
         categories = list(seed_embeddings_by_category.keys())
-        seed_centroids = np.vstack(
+        seed_centroids = np.vstack([
             np.mean(seed_embs, axis=0) for seed_embs in seed_embeddings_by_category.values()
             if seed_embs.shape[0] > 0
-        )
+        ])
         n_seed_categories = len(seed_centroids)
         n_clusters = n_seed_categories + 3  # seeds + 3 discovered
 
@@ -474,18 +474,31 @@ def compute_clusters(
                 "Reducing cluster count."
             )
 
+        # Pad init array with random centroids for discovered clusters
+        if n_clusters > n_seed_categories:
+            n_extra = n_clusters - n_seed_categories
+            random_centroids = np.random.randn(n_extra, embeddings.shape[1]).astype(np.float32)
+            # Normalize random centroids to same scale as seed centroids
+            random_centroids = random_centroids / np.linalg.norm(random_centroids, axis=1, keepdims=True)
+            init_centroids = np.vstack([seed_centroids, random_centroids])
+        else:
+            init_centroids = seed_centroids[:n_clusters]
+
         logger.info(
-            "Running KMeans with n_clusters=%d (seed_centroids + 3 discovered), "
-            "init=seed_centroids, n_init=1, random_state=42",
+            "Running KMeans with n_clusters=%d (%d seed + %d discovered), "
+            "n_init=1, random_state=42",
             n_clusters,
+            min(n_seed_categories, n_clusters),
+            max(0, n_clusters - n_seed_categories),
         )
         kmeans = KMeans(
             n_clusters=n_clusters,
-            init=seed_centroids,
+            init=init_centroids,
             n_init=1,
             random_state=42,
             algorithm="elkan",
         )
+        kmeans.fit(embeddings)
         labels = kmeans.labels_
         final_centroids = kmeans.cluster_centers_
 
