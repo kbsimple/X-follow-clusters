@@ -208,3 +208,30 @@ class XEnrichmentClient:
                 path=str(path),
                 cause=str(e),
             )
+
+    def get_recent_tweets(
+        self,
+        user_id: str,
+        max_tweets: int = 5,
+    ) -> list[dict[str, Any]]:
+        """Fetch recent tweets for a user.
+
+        Args:
+            user_id: X user ID.
+            max_tweets: Maximum tweets to fetch (default 5).
+
+        Returns:
+            List of tweet dicts with 'text' and 'created_at' fields.
+        """
+        try:
+            response = self._client.get_users_tweets(
+                id=user_id,
+                max_results=min(max_tweets, 10),  # API allows 5-100
+                tweet_fields=["created_at", "public_metrics"],
+                exclude=["retweets", "replies"],  # Just original tweets
+            )
+            body = response.json()
+            return body.get("data") or []
+        except Exception as e:
+            logger.warning("Failed to fetch tweets for %s: %s", user_id, e)
+            return []
