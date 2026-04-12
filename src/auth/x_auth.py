@@ -202,6 +202,8 @@ def get_authorization_url(client_id: str, client_secret: str) -> str:
         redirect_uri="http://127.0.0.1:8080/callback",
         scope=["tweet.read", "users.read", "list.read", "list.write", "offline.access"],
     )
+    # Set a default timeout on the underlying requests session to prevent indefinite hangs
+    _oauth2_handler.session.timeout = 30
     return _oauth2_handler.get_authorization_url()
 
 
@@ -373,10 +375,11 @@ def ensure_authenticated() -> XAuth:
     logger.info("No stored tokens found. Initiating OAuth 2.0 PKCE flow.")
     auth_url = get_authorization_url(client_id, client_secret)
     logger.info("Authorization URL generated.")
-    print(f"Open this URL in your browser and authorize:\n{auth_url}")
+    print(f"Open this URL in your browser and authorize:\n{auth_url}", flush=True)
 
     logger.info("Waiting for OAuth callback on port 8080…")
     code = wait_for_callback()
+    print("Authorization code received. Exchanging for tokens…", flush=True)
     logger.info("Authorization code received. Exchanging for tokens…")
     access_token, refresh_token = exchange_code_for_token(code)
     save_tokens(access_token, refresh_token)
