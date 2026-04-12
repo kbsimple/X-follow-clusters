@@ -241,7 +241,7 @@ def exchange_code_for_token(code: str) -> tuple[str, str]:
         raise AuthError(f"Token exchange failed: {e}")
     # fetch_token returns the full token dict; extract access_token and refresh_token
     access_token_str = access_token.get("access_token", "") if isinstance(access_token, dict) else access_token
-    refresh_token_str = _oauth2_handler.refresh_token or ""
+    refresh_token_str = access_token.get("refresh_token", "") if isinstance(access_token, dict) else ""
     logger.info("Refresh token: %s", "received" if refresh_token_str else "not received")
     return access_token_str, refresh_token_str
 
