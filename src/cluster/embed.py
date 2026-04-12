@@ -64,16 +64,24 @@ def get_text_for_embedding(account: dict) -> str:
     Joins description + location + professional_category + pinned_tweet_text
     with " | " separator. Empty fields are skipped.
 
+    Per D-16: entity fields are appended in format:
+        | Org: X | Loc: Y | Title: Z
+    Example: "AI researcher | San Francisco | Engineering | Pinned tweet | Org: DeepMind | Loc: London | Title: Research Scientist"
+
+    Entity fields (entity_orgs, entity_locs, entity_titles) are added from
+    Phase 8 entity extraction. Empty entity lists produce no segments.
+
     Parameters
     ----------
     account : dict
         Account dict loaded from data/enrichment/{account_id}.json.
         Expected keys: description, location, professional_category, pinned_tweet_text
+        Optional: entity_orgs, entity_locs, entity_titles (from Phase 8 extraction)
 
     Returns
     -------
     str
-        Concatenated text, e.g. "AI researcher | San Francisco | Engineering | Hello world"
+        Concatenated text, e.g. "AI researcher | San Francisco | Engineering | Hello world | Org: DeepMind | Loc: London | Title: Research Scientist"
         Returns "" if all fields are empty/missing.
     """
     parts = [
@@ -82,6 +90,19 @@ def get_text_for_embedding(account: dict) -> str:
         account.get("professional_category", ""),
         account.get("pinned_tweet_text", ""),
     ]
+
+    # Per D-16: append entity fields as | Org: X | Loc: Y | Title: Z
+    entity_orgs = account.get("entity_orgs", [])
+    entity_locs = account.get("entity_locs", [])
+    entity_titles = account.get("entity_titles", [])
+
+    if entity_orgs:
+        parts.append("Org: " + ", ".join(entity_orgs))
+    if entity_locs:
+        parts.append("Loc: " + ", ".join(entity_locs))
+    if entity_titles:
+        parts.append("Title: " + ", ".join(entity_titles))
+
     cleaned = [p.strip() for p in parts if p and p.strip()]
     return " | ".join(cleaned)
 
