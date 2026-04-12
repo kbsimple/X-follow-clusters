@@ -1,164 +1,234 @@
-# Feature Landscape: X Follower Organization Tools
+# Feature Research: Tweet Caching with Accumulation
 
-**Domain:** Tools that organize Twitter/X followers into lists
-**Researched:** 2026-04-02
-**Confidence:** MEDIUM (market research + limited official docs; some API constraints require verification)
+**Domain:** Tweet caching for social media enrichment pipeline
+**Researched:** 2026-04-12
+**Confidence:** HIGH (existing codebase analysis + established patterns)
 
 ---
 
-## Table Stakes
+## Context
 
-Features users expect. Missing = product feels broken, users leave.
+This is a **subsequent milestone** adding tweet caching to an existing app. The project already has:
+- X API profile enrichment with disk caching (per-account JSON files in `data/enrichment/`)
+- Recent tweets fetch (50 tweets per account, currently overwrites on each run)
+- Tweet embeddings for topical clustering (uses `recent_tweets_text` field)
+
+**Focus:** Only the NEW caching feature requirements (CACHE-01, CACHE-02, CACHE-03 from PROJECT.md).
+
+---
+
+## Table Stakes (Users Expect These)
+
+Features users assume exist. Missing these = product feels incomplete.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| **Follower data fetch** | Core value - without data, nothing else works | Medium | Requires X API access; rate limits apply (see Architecture) |
-| **List creation and naming** | Basic organizational primitive | Low | Standard CRUD operations |
-| **Add/remove members to lists** | Core interaction with X native lists | Low | API parity with X native behavior |
-| **View all followers** | X native UI caps at ~500 visible; users want full access | Low | This is the primary pain point these tools solve |
-| **Export to CSV/JSON** | Users want to use data elsewhere (sheets, BI tools, scripts) | Low | Straightforward API-to-file transformation |
-| **Basic filtering** | By follower count, tweet count, verified status | Low | Available in most tools |
-| **Bulk operations** | Adding/removing multiple accounts at once | Low | API supports `create_all` with 100 members/request |
-| **Search within followers** | Finding specific accounts in large lists | Low | Simple string matching |
+| **Cache hit path** | Fetching tweets is slow/expensive; second run should be instant | LOW | Read from `{account_id}.json` if tweets exist; no API call needed |
+| **Deduplication by ID** | Same tweet fetched multiple times = corrupted data | LOW | Use tweet ID as unique key; store as dict keyed by ID for O(1) lookup |
+| **Accumulation across runs** | Data should grow, not replace; user wants more signal over time | MEDIUM | Merge new tweets into existing; keep all historical posts |
+| **Graceful degradation on API errors** | Partial data better than no data | LOW | Return cached tweets on fetch failure; log warning |
 
 ---
 
-## Differentiators
+## Differentiators (Competitive Advantage)
 
-Features that set products apart. Not expected, but highly valued when present.
-
-### Data Enrichment
+Features that set the product apart. Not required, but valuable.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| **Bot/fake account detection** | Helps users clean lists; high demand given X's bot issues | High | Requires ML model or third-party data; Circleboom offers this |
-| **Account activity scoring** | Identifies active vs inactive followers | Medium | Based on tweet frequency, recency, engagement |
-| **Follower overlap analysis** | Groups users by shared follower relationships | High | Jaccard similarity + agglomerative clustering; academic-grade |
-| **Keyword/bio search with scoring** | Find followers matching interest criteria | Medium | Full-text search on bio content |
-| **Demographic/interest estimation** | Infers interests from bio, tweets, follows | High | Most tools over-promise here |
-| **Professional category tagging** | Maps accounts to business categories | Medium | X provides `professional_category` field |
-| **Cross-platform identity linking** | Connects X accounts to LinkedIn, websites, emails | High | Requires third-party data enrichment (Influencers.club does this) |
-| **Historical follower tracking** | "Who followed me when" delta tracking | Medium | X Lists offers this; shows account growth/loss patterns |
-
-### Clustering Approaches
-
-| Feature | Value Proposition | Complexity | Notes |
-|---------|-------------------|------------|-------|
-| **Keyword-based clustering** | Group by bio keywords, tweet topics | Low-Medium | Simple regex/LLM-based topic extraction |
-| **NLP-based clustering** | Semantic similarity from tweet content | High | Requires LLM API or embedding model; expensive at scale |
-| **Network-based clustering** | Group by follower overlap / who follows whom | High | Reveals communities; used in academic/market research |
-| **Hybrid clustering** | Combines keyword + network + activity signals | High | Best accuracy; significant implementation cost |
-| **Manual review + auto-suggest** | AI suggests clusters, human approves/refines | Medium | Best UX pattern; reduces ML complexity |
-
-### User Interaction Patterns
-
-| Feature | Value Proposition | Complexity | Notes |
-|---------|-------------------|------------|-------|
-| **Review flow before committing** | Users see suggested clusters, then approve | Medium | Critical UX pattern; prevents bad bulk actions |
-| **One-click approve/reject suggestions** | Fast human-in-the-loop decisions | Low | Simple UI buttons; major UX improvement |
-| **Undo / bulk undo** | Revert mistaken bulk operations | Low | Essential safety net for list operations |
-| **Drag-and-drop list management** | Intuitive list building | Low | Native app feel; simple to implement |
-| **List comparison view** | "Show me accounts in List A but not List B" | Medium | Set operations on member lists |
-| **Collaboration / team sharing** | Share curated lists across a team | Low-Medium | X Lists are inherently shareable; adds team features on top |
-| **Pin frequently-used lists** | Quick access to important segment lists | Low | Simple UI affordance |
-| **Periodic list auditing reminders** | Prompt users to review stale lists | Low | Notification/cue; low implementation cost |
-
-### List Management
-
-| Feature | Value Proposition | Complexity | Notes |
-|---------|-------------------|------------|-------|
-| **Unlimited list creation** | X native caps at 1,000 lists per account | Low | API allows up to 1,000; most third-party tools remove this limit conceptually (API still applies) |
-| **List templates** | Pre-built lists by category (e.g., "journalists", "competitors") | Low | Starter list definitions; reduces manual work |
-| **Smart/auto-updating lists** | Rules-based list membership that auto-updates | Medium-High | Complex to implement correctly; risk of unexpected behavior |
-| **List size visualization** | Progress bars toward 5,000 member cap | Low | Simple UI; helps users plan |
-| **Private vs public list toggle** | Align with X native privacy model | Low | Direct API parity |
-| **List cloning/copying** | Duplicate a list as starting point | Low | Copy members to new list |
+| **Incremental fetch (watermarks)** | Only fetch NEW tweets since last run; saves API quota | MEDIUM | Track `newest_tweet_id` watermark; use X API `since_id` parameter |
+| **Backfill support** | Fetch older tweets beyond initial 50 on subsequent runs | MEDIUM | Track `oldest_tweet_id` watermark; use `until_id` parameter for pagination |
+| **No storage limit** | Cache grows unbounded; 50 tweets per run accumulates to hundreds | LOW | Remove the `max_tweets` cap on storage; keep all accumulated tweets |
+| **Freshness watermark** | Know when cache was last updated without opening file | LOW | Store `tweets_last_fetched_at` timestamp in account JSON |
 
 ---
 
-## Anti-Features
+## Anti-Features (Commonly Requested, Often Problematic)
 
-Features to explicitly NOT build. They create problems, trust issues, or regulatory exposure.
+Features that seem good but create problems.
 
-| Anti-Feature | Why Avoid | What to Do Instead |
-|--------------|-----------|-------------------|
-| **Auto-follow on list add** | Creeps users out; violates trust; X may penalize | Require explicit user action for follow/unfollow |
-| **Posting/scheduling from within tool** | Outside core value prop; adds complexity | Integrate with dedicated scheduling tools |
-| **Buying followers/lists** | Explicitly deceptive; damages reputation | Offer organic growth insights instead |
-| **Scraping without API** | Violates X ToS; legal risk; data quality issues | Use official API; accept rate limits |
-| **Promised "full" follower export exceeding API limits** | X API caps at 5,000 followers/fetch for most tiers; no tool can bypass this | Be transparent about API constraints |
-| **Guaranteed demographic data** | Overpromise; demographic inference is estimation at best | Provide confidence scores or ranges |
-| **Mandatory account connection to third parties** | Privacy concern; users may revoke access | OAuth only; clearly state data use |
-| **Infinite list suggestions without limits** | Creates cognitive overload; users abandon tool | Curate suggestions, prioritize by activity/relevance |
+| Feature | Why Requested | Why Problematic | Alternative |
+|---------|---------------|-----------------|-------------|
+| **Real-time tweet polling** | "Always have latest tweets" | Adds complexity; violates "one-time run" constraint; burns API quota | On-demand refresh via explicit command |
+| **TTL-based cache invalidation** | "Keep data fresh" | Tweets are immutable; no benefit to re-fetching same IDs | Watermark-based incremental fetch |
+| **Separate tweet cache file** | "Cleaner separation" | Account JSON is already the cache unit; adds file I/O overhead | Store `recent_tweets` array within account JSON |
+| **Fetch all historical tweets** | "Complete history" | X API pagination limit (~3200 tweets); burns massive quota; rarely needed | Accumulate 50 per run; user can run multiple times |
 
 ---
 
 ## Feature Dependencies
 
 ```
-Follower Data Fetch
-    ├── Raw follower list (must have)
-    │   ├── Basic filtering (table stakes)
-    │   ├── CSV/JSON export (table stakes)
-    │   └── Bot detection (differentiator)
-    │
-    ├── Clustering Engine
-    │   ├── Keyword extraction → Keyword clustering
-    │   ├── Bio embedding → NLP clustering
-    │   ├── Follower graph → Network clustering
-    │   └── Review workflow (requires clustering output)
-    │
-    └── List Management
-        ├── Create list (table stakes)
-        ├── Add members (table stakes)
-        ├── List templates (differentiator)
-        └── Smart lists (differentiator, high complexity)
+[Incremental Fetch (since_id)]
+    └──requires──> [newest_tweet_id watermark stored in cache]
+    └──requires──> [Cache hit path: read before write]
+
+[Deduplication by ID]
+    └──requires──> [Tweet objects have 'id' field from API]
+
+[Accumulation]
+    └──requires──> [Deduplication by ID]
+    └──requires──> [Cache hit path: merge with existing]
+
+[No storage limit]
+    └──requires──> [Accumulation]
+    └──conflicts──> [max_tweets parameter on fetch] (remove from storage, keep on API pagination)
 ```
 
----
+### Dependency Notes
 
-## X API Constraints (Critical Reference)
-
-| Constraint | Value | Source |
-|------------|-------|--------|
-| **Max members per list** | 5,000 | [X Developer Docs - POST lists/members/create_all](https://developer.x.com/en/docs/twitter-api/v1/accounts-and-users/create-manage-lists/api-reference/post-lists-members-create_all) |
-| **Max members per create_all request** | 100 | Same as above |
-| **Max lists per account** | 1,000 | X Developer Platform docs |
-| **List members fetch max per page** | 5,000 | [GET lists/members](https://developer.x.com/en/docs/twitter-api/v1/accounts-and-users/create-manage-lists/api-reference/get-lists-members) |
-| **Rate limits** | ~300 requests/15 min for list operations | [Manage Lists introduction](https://developer.x.com/en/docs/twitter-api/lists/manage-lists/introduction) |
+- **Incremental Fetch requires newest_tweet_id watermark:** The X API `since_id` parameter returns tweets newer than the given ID. Without storing the newest ID from the previous run, we cannot skip already-fetched tweets.
+- **Accumulation requires Deduplication:** If we merge without deduping, the same tweet appears multiple times when re-fetched, corrupting embeddings and entity extraction.
+- **No storage limit conflicts with max_tweets parameter:** Currently `max_tweets=50` is both the API pagination limit AND the storage cap. These must be separated: keep 50 for API batching, remove storage cap.
 
 ---
 
-## MVP Recommendation
+## MVP Definition
 
-**Prioritize in order:**
+### Launch With (v1)
 
-1. **Follower data fetch + full list view** (Table stakes - solves the core pain)
-2. **Basic filtering** (follower count, verified, activity) (Table stakes - needed to make sense of data)
-3. **List creation + bulk add/remove** (Table stakes - core interaction)
-4. **CSV export** (Table stakes - users expect to take data elsewhere)
-5. **Keyword-based clustering with review workflow** (First differentiator - tractable complexity, clear value)
-6. **Bot/inactive account signals** (Differentiator - high value, available via API fields)
+Minimum viable product — what's needed to validate the concept.
 
-**Defer:**
-- NLP/semantic clustering: High complexity, marginal UX gain over keyword-based for most users
-- Network/follower-overlap clustering: Academic interest, high implementation cost
-- Smart/auto-updating lists: High complexity, risk of unexpected behavior, users prefer control
-- Cross-platform identity enrichment: Third-party data dependency, privacy complexity
+- [ ] **Cache hit path** — If `recent_tweets` exists in account JSON, skip API call; return cached data
+- [ ] **Deduplication by ID** — Merge new tweets into existing array; drop duplicates by tweet ID
+- [ ] **Accumulation** — Remove storage cap; keep all tweets across runs (API still fetches 50 per call)
+
+### Add After Validation (v1.x)
+
+Features to add once core is working.
+
+- [ ] **Incremental fetch (watermarks)** — Store `newest_tweet_id` and use `since_id` parameter to fetch only new tweets
+- [ ] **Freshness timestamp** — Store `tweets_last_fetched_at` for visibility into cache age
+
+### Future Consideration (v2+)
+
+Features to defer until product-market fit is established.
+
+- [ ] **Backfill (oldest_tweet_id)** — Use `until_id` to fetch older tweets beyond initial window
+- [ ] **Tweet pruning** — Remove deleted tweets (requires tweet existence check)
+- [ ] **Compressed storage** — Gzip compress tweet array for accounts with hundreds of tweets
+
+---
+
+## Feature Prioritization Matrix
+
+| Feature | User Value | Implementation Cost | Priority |
+|---------|------------|---------------------|----------|
+| Cache hit path | HIGH | LOW | P1 |
+| Deduplication by ID | HIGH | LOW | P1 |
+| Accumulation (no storage limit) | HIGH | LOW | P1 |
+| Incremental fetch (since_id) | MEDIUM | MEDIUM | P2 |
+| Freshness timestamp | LOW | LOW | P3 |
+| Backfill (oldest_tweet_id) | LOW | MEDIUM | P3 |
+
+**Priority key:**
+- P1: Must have for launch (CACHE-01, CACHE-02, CACHE-03 requirements)
+- P2: Should have, add when possible (optimization for API quota)
+- P3: Nice to have, future consideration
+
+---
+
+## Implementation Notes
+
+### Current State (from codebase analysis)
+
+The existing implementation in `src/enrich/api_client.py`:
+
+```python
+def get_recent_tweets(self, user_id: str, max_tweets: int = 50) -> list[dict]:
+    # Fetches up to 50 tweets via pagination
+    # Returns list; does NOT cache internally
+```
+
+The test harness in `src/enrich/test_enrich.py` (lines 277-282):
+
+```python
+account["recent_tweets"] = tweets  # OVERWRITES existing!
+account["recent_tweets_text"] = " ".join(t.get("text", "") for t in tweets)
+```
+
+**Problem:** Current implementation OVERWRITES `recent_tweets` on each run. This violates CACHE-02 accumulation requirement.
+
+### Recommended Implementation Pattern
+
+```python
+def get_tweets_with_cache(
+    self,
+    user_id: str,
+    cache_path: Path,
+    fetch_limit: int = 50,  # API pagination limit (not storage limit)
+) -> tuple[list[dict], bool]:
+    """
+    Fetch tweets with cache accumulation.
+
+    Returns:
+        (tweets_list, was_cache_hit)
+    """
+    # 1. Load existing cache
+    if cache_path.exists():
+        account = json.loads(cache_path.read_text())
+        existing_tweets = account.get("recent_tweets", [])
+        existing_ids = {t["id"] for t in existing_tweets}
+        newest_id = max((t["id"] for t in existing_tweets), default=None)
+    else:
+        existing_tweets = []
+        existing_ids = set()
+        newest_id = None
+
+    # 2. Fetch new tweets (since_id if watermark exists)
+    new_tweets = self._fetch_tweets_paginated(
+        user_id,
+        max_tweets=fetch_limit,
+        since_id=newest_id,  # Only fetch newer than cached
+    )
+
+    # 3. Dedupe and merge
+    merged_tweets = existing_tweets.copy()
+    for tweet in new_tweets:
+        if tweet["id"] not in existing_ids:
+            merged_tweets.append(tweet)
+
+    # 4. Sort by created_at descending (newest first)
+    merged_tweets.sort(key=lambda t: t["created_at"], reverse=True)
+
+    # 5. Update watermarks and timestamp
+    if merged_tweets:
+        account["newest_tweet_id"] = merged_tweets[0]["id"]
+        account["oldest_tweet_id"] = merged_tweets[-1]["id"]
+        account["tweets_last_fetched_at"] = datetime.utcnow().isoformat()
+
+    account["recent_tweets"] = merged_tweets
+    account["recent_tweets_text"] = " ".join(t.get("text", "") for t in merged_tweets)
+
+    # 6. Write back to cache
+    cache_path.write_text(json.dumps(account, indent=2))
+
+    return merged_tweets, len(new_tweets) == 0  # cache_hit if no new tweets
+```
+
+### Key Design Decisions
+
+| Decision | Rationale |
+|----------|-----------|
+| Store tweets in account JSON | Existing cache pattern; no new file I/O overhead |
+| Use `since_id` for incremental fetch | X API native parameter; returns only newer tweets |
+| Keep tweets sorted newest-first | Embeddings use most recent content; consistent ordering |
+| No TTL on cache | Tweets are immutable; no benefit to invalidation |
+| Keep API limit separate from storage limit | API pagination is 50/request; storage is unbounded |
 
 ---
 
 ## Sources
 
-- [X Lists - Follower Export Tool](https://x-lists.com/en/lp)
-- [Circleboom Twitter Follower List Viewer](https://circleboom.com/blog/twitter-follower-list-viewer/)
-- [Xquik - List Follower Explorer](https://xquik.com/en/list-follower-explorer)
-- [Apify Twitter Followers Scraper](https://apify.com/sovereigntaylor/twitter-followers-scraper/api/cli)
-- [Medium - Clustering Twitter Users by Follower Overlap](https://medium.com/inst414-data-science-tech/uncovering-social-circles-clustering-twitter-users-based-on-follower-overlap-ced226e720aa)
-- [Followerwonk - Sort Followers](http://followerwonk.com/sort-followers.html)
-- [Influencers.club - Twitter Data API](https://influencers.club/twitter-api/)
-- [X Developer - POST lists/members/create_all](https://developer.x.com/en/docs/twitter-api/v1/accounts-and-users/create-manage-lists/api-reference/post-lists-members-create_all)
-- [X Developer - Manage Lists Introduction](https://developer.x.com/en/docs/twitter-api/lists/manage-lists/introduction)
-- [X Developer - GET lists/members](https://developer.x.com/en/docs/twitter-api/v1/accounts-and-users/create-manage-lists/api-reference/get-lists-members)
-- [UMA Technology - How to Create and Manage X Lists](https://umatechnology.org/how-to-create-and-manage-x-formerly-twitter-lists/)
-- [Position Is Everything - How to Use Twitter Lists](https://www.positioniseverything.net/how-to-use-twitter-lists-and-why-you-should/)
+- [Designing a Distributed Cache Platform at Twitter Scale](https://medium.com/@shree6791/designing-a-distributed-cache-platform-at-twitter-scale-24428fa964fa) (March 2026)
+- [Fetching X Timelines with API v2 Pay-Per-Use: Cost Breakdown, Caching, and the Gotchas](https://dev.to/ikka/fetching-x-timelines-with-api-v2-pay-per-use-cost-breakdown-caching-and-the-gotchas-1i2o) (March 2026)
+- [Affordable Storage for Real-Time Twitter Data](https://twitterapi.io/articles/affordable-storage-for-real-time-twitter-data) (2026)
+- [Incremental Web Scraping & Data Feeds](https://jamesjlaurieiii.com/resources/incremental-web-scraping-data-feeds.html) (two watermarks pattern)
+- [Stale-While-Revalidate: The Caching Pattern That Balances Speed and Freshness](https://www.paulserban.eu/blog/post/stale-while-revalidate-the-caching-pattern-that-balances-speed-and-freshness/) (SWR pattern)
+- Existing codebase: `src/enrich/api_client.py` (get_recent_tweets method)
+- Existing codebase: `src/enrich/test_enrich.py` (tweet storage pattern)
+- Existing codebase: `src/cluster/embed.py` (tweet embedding usage)
+
+---
+*Feature research for: Tweet caching with accumulation*
+*Researched: 2026-04-12*

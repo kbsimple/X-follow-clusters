@@ -1,312 +1,346 @@
-# Domain Pitfalls: X Follower Organization Tool
+# Pitfalls Research: Tweet Caching with Accumulation
 
-**Domain:** X API + scraping + follower clustering
-**Researched:** 2026-04-02
-**Confidence:** MEDIUM (web search primary source; some X API specifics need validation)
+**Domain:** Tweet caching with accumulation for enrichment pipeline
+**Researched:** 2026-04-12
+**Confidence:** HIGH (official docs + multiple production issues verified)
+
+## Executive Summary
+
+This document covers pitfalls specific to **adding tweet caching with accumulation** to an existing X API enrichment pipeline. The system already has profile caching (one JSON file per account). The new milestone adds tweet caching with accumulation across runs.
+
+**Key risk areas:**
+1. Tweet ID precision loss during JSON serialization
+2. Race conditions in file-based cache writes
+3. Unbounded cache growth without eviction
+4. Incremental fetch semantics (since_id is exclusive)
+5. Retweet/quote tweet reference handling
 
 ---
 
 ## Critical Pitfalls
 
-### 1. Rate Limit Exhaustion Without Recovery Strategy
+### Pitfall 1: JSON Precision Loss with Tweet IDs
 
-**What goes wrong:** Tool hits HTTP 429 and either retries immediately (making it worse) or fails silently (producing incomplete output).
+**What goes wrong:**
+Tweet IDs are 64-bit snowflake integers. When serialized to JSON and read by JavaScript or some JSON parsers, precision is lost because JavaScript only supports 53-bit integers. The result is corrupted IDs that no longer reference the original tweet.
 
-**Why it happens:** X API v2 enforces per-endpoint limits (e.g., `GET /2/users/:id` is 300/15min per user, 900/15min per app). The `follower.js` can contain hundreds or thousands of accounts. Naive enrichment makes one API call per follower and exhausts limits in minutes.
+**Why it happens:**
+Twitter/X API returns both `id` (integer) and `id_str` (string). Developers often use the integer form for convenience, not realizing that JSON serialization will corrupt the value when crossing language boundaries or when read by JavaScript tools.
 
-**Consequences:**
-- Partial enrichment (many profiles missing data)
-- 429s cascading through the session
-- User cannot tell which accounts were enriched vs. skipped
+**How to avoid:**
+- Always use `id_str` field from Twitter API responses
+- Store tweet IDs as strings in JSON files, not integers
+- When reading cached JSON, treat ID fields as strings from the start
+- Use Python's native `int` for in-memory operations (Python handles arbitrary precision), but convert to `str()` before JSON serialization
 
-**Prevention:**
-- Batch requests: `GET /2/users` accepts up to 100 user IDs per call
-- Track `x-rate-limit-remaining` and `x-rate-limit-reset` headers in every response
-- Implement exponential backoff with jitter (cap at 60s, add random 0-1s jitter)
-- Build a request queue that spaces calls across time windows (e.g., for 900/15min limit, max 1 req/sec)
-- Cache all API responses to disk immediately -- never re-request within the session
+**Warning signs:**
+- Tweet IDs ending in unexpected digits (e.g., `...123456` becomes `...123457`)
+- "Tweet not found" errors when fetching by ID from cache
+- Duplicate detection failures because IDs no longer match
 
-**Detection:**
-- Log `x-rate-limit-remaining` at 80% threshold
-- Alert when 429 is encountered
-- Verify output count matches expected count after enrichment
-
-**Phase:** Phase 2 (API integration). Rate limit handling must be built before enrichment begins.
+**Phase to address:**
+CACHE-01 (cache read path) — must be prevented at the serialization layer
 
 ---
 
-### 2. Authentication Failure Due to Token Misconfiguration
+### Pitfall 2: Race Condition During Cache Write
 
-**What goes wrong:** HTTP 401 on every request despite credentials being "correct."
+**What goes wrong:**
+When writing to JSON cache files, concurrent reads or writes can corrupt the file. The sequence of `truncate()` followed by `write()` creates a window where the file is empty or partially written.
 
 **Why it happens:**
-- **Clock skew**: OAuth 1.0a signatures are timestamp-sensitive; system clock drift >5 minutes causes 401
-- **Access token regeneration**: After changing app permissions (e.g., adding Read/Write), existing tokens are invalidated -- must regenerate
-- **OAuth scope mismatch**: App has wrong scopes for the endpoints being called (e.g., Basic tier cannot access some endpoints)
-- **Bearer token in wrong format**: Should be `Authorization: Bearer <token>`, not query param
+JSON file writes are not atomic. A process reading the file during a write will see either empty content (after truncate) or partial content (during write). This causes `JSONDecodeError` crashes on subsequent reads.
 
-**Consequences:**
-- Complete inability to make API calls
-- User blames "broken API integration" rather than config issue
+**How to avoid:**
+- Use atomic write pattern: write to temp file, then `os.replace()` (atomic on POSIX)
+- Add `f.flush()` and `os.fsync(f.fileno())` after write to ensure data reaches disk
+- Consider file locking with `fcntl.flock()` for multi-process scenarios
+- Handle read failures gracefully: treat unreadable cache as "not present"
 
-**Prevention:**
-- Sync system clock via NTP before first run
-- Verify credentials with a lightweight endpoint (e.g., `GET /2/users/me`) before batching
-- Document that changing app permissions in the X developer portal requires re-authenticating
-- Use OAuth 2.0 Authorization Code with PKCE (current standard for X API v2)
+```python
+import os
+import json
+import tempfile
 
-**Detection:**
-- Log full error response body on 401/403
-- Check `x-rate-limit-reset` header even on auth failures (sometimes misleading)
+def atomic_write(path, data):
+    fd, tmp_path = tempfile.mkstemp(dir=os.path.dirname(path))
+    try:
+        with os.fdopen(fd, 'w') as f:
+            json.dump(data, f)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_path, path)  # Atomic on POSIX
+    except:
+        os.unlink(tmp_path)
+        raise
+```
 
-**Phase:** Phase 2 (API integration). Auth verification should be the first test before any enrichment.
+**Warning signs:**
+- `JSONDecodeError: Expecting value: line 1 column 1 (char 0)` when reading cache
+- Intermittent cache misses that should be hits
+- Corrupted JSON files (partial writes, extra characters)
+
+**Phase to address:**
+CACHE-01 (cache read/write operations) — must use atomic writes from the start
 
 ---
 
-### 3. Getting IP-Blocked During Profile Scraping
+### Pitfall 3: Unbounded Cache Growth
 
-**What goes wrong:** X's anti-bot system detects headless browser or requests library, blocks IP, returns 403 or CAPTCHA pages.
+**What goes wrong:**
+CACHE-03 specifies "no limit on stored posts — cache grows over multiple invocations." Without size limits or eviction policies, the cache directory grows indefinitely, eventually consuming all available disk space or causing performance degradation.
 
 **Why it happens:**
-- X uses Cloudflare Turnstile + behavioral fingerprinting
-- Python `requests` has a distinct TLS (JA3) fingerprint recognized and blocked
-- Datacenter IPs (AWS, DigitalOcean, etc.) are blocked within minutes of high-frequency requests
-- Headless browsers without stealth plugins expose automation signals (missing navigator.plugins, automation flags)
+Developers implement accumulation (merge new tweets with existing) without implementing cleanup. The cache grows linearly with each run. For a user following 1,000 accounts with 50 tweets each, that's 50,000 tweets. After 10 runs with new tweets, this could balloon significantly.
 
-**Consequences:**
-- Profile page scraping fails entirely
-- IP may be temporarily soft-blocked on the API too (shared IP detection)
-- CAPTCHA interstitial appears instead of profile data
+**How to avoid:**
+- Define a maximum cache size per user (e.g., most recent 200 tweets)
+- Implement deduplication by tweet ID during accumulation
+- Consider pruning older tweets beyond a threshold (e.g., tweets older than 1 year)
+- Monitor cache directory size in logs
+- Document expected growth rate and disk requirements
 
-**Prevention:**
-- Use residential or mobile proxies for scraping (Bright Data, Oxylabs, Apify proxy)
-- Use `curl_cffi` or Playwright with stealth plugins to match browser TLS fingerprints
-- Add random delays between requests (2-5s with jitter)
-- Warm up sessions: browse a few unrelated pages first, maintain cookies
-- Rotate User-Agent strings but stay within plausible Chrome/Firefox versions
-- Consider managed scraping APIs (Apify, Bright Data) for X specifically -- they maintain browser fingerprints at scale
+**Warning signs:**
+- Cache directory growing faster than expected
+- Disk space alerts on the system
+- Slower file I/O as JSON files grow large
+- Memory pressure when loading large cache files
 
-**Detection:**
-- 403 responses on scraping but not on API calls
-- CAPTCHA page title in response HTML
-- `curl` works but programmatic requests fail (clear fingerprinting signal)
+**Phase to address:**
+CACHE-02 (accumulation logic) — must implement bounds during merge
 
-**Phase:** Phase 3 (Scraping). Anti-detection should be researched and tested before production scraping runs.
+---
+
+### Pitfall 4: Incorrect since_id Usage for Incremental Fetch
+
+**What goes wrong:**
+When fetching only new tweets, developers misunderstand how `since_id` works. It returns tweets *newer* than the given ID, not including that ID. Also, `max_id` is *inclusive*, so naive use causes duplicate tweets at pagination boundaries.
+
+**Why it happens:**
+- `since_id` is exclusive: `since_id=123` returns tweets with ID > 123
+- `max_id` is inclusive: `max_id=123` returns tweets with ID <= 123
+- When paginating backward, subtracting 1 from `max_id` is needed to avoid duplicates
+- When fetching new tweets, storing the *highest* ID (most recent) is critical
+
+**How to avoid:**
+- Store the most recent (highest) tweet ID after each fetch
+- Use `since_id=<highest_id>` to fetch only new tweets
+- For backward pagination, use `max_id=<lowest_id - 1>`
+- Verify with a small test case before scaling
+
+```python
+# Correct: fetch tweets newer than our most recent
+new_tweets = client.get_users_tweets(
+    id=user_id,
+    since_id=last_highest_id,  # exclusive, returns > this ID
+    max_results=100
+)
+
+# Track the new highest ID for next time
+if new_tweets:
+    new_highest = max(t['id'] for t in new_tweets)
+```
+
+**Warning signs:**
+- Duplicate tweets appearing in cache after multiple runs
+- Missing tweets that should have been fetched
+- Inconsistent tweet counts between runs
+
+**Phase to address:**
+CACHE-01 (incremental fetch logic)
+
+---
+
+### Pitfall 5: Retweet/Quote Tweet Reference Handling
+
+**What goes wrong:**
+When caching tweets, retweets and quote tweets reference the original tweet. If only the reference is stored without the original tweet data, the cache is incomplete. When fetching with `exclude=["retweets"]`, developers may miss that quote tweets still need expansion.
+
+**Why it happens:**
+- Retweets return a reference to the original, not full content
+- Quote tweets need `expansions=referenced_tweets.id` to get full original
+- The API response splits data between `data` and `includes.tweets`
+
+**How to avoid:**
+- Use `expansions=referenced_tweets.id,referenced_tweets.id.author_id` when fetching
+- Store both the tweet and any referenced tweets from `includes`
+- Track `retweeted_tweet_id` and `quoted_tweet_id` fields for reference
+- Consider excluding retweets entirely (as current code does) to simplify
+
+**Warning signs:**
+- Quote tweets missing the quoted content
+- Retweet entries with no original tweet text
+- Broken references when rendering or analyzing tweets
+
+**Phase to address:**
+CACHE-01 (tweet fetch and storage)
 
 ---
 
 ## Moderate Pitfalls
 
-### 4. Suspended and Protected Accounts Breaking Clustering
+### Pitfall 6: Cache Miss Results in Full Refetch
 
-**What goes wrong:** Cluster contains accounts that are suspended, deleted, or protected -- enriching them fails or returns garbage, clustering is degraded.
+**What goes wrong:**
+When a cache file doesn't exist or is unreadable, the system fetches all 50 tweets instead of incrementally fetching only new ones. This wastes API quota.
+
+**How to avoid:**
+- Distinguish between "no cache exists" (fetch all) and "cache exists but incomplete" (fetch incrementally)
+- Store metadata about last fetch time and highest ID
+- If cache is corrupted, log a warning but still fetch incrementally if possible
+
+---
+
+### Pitfall 7: Duplicate Tweets in Accumulation
+
+**What goes wrong:**
+When merging new tweets with cached tweets, naive `extend()` adds duplicates if the same tweet appears in both sets. This happens when a previous fetch was interrupted and resumed.
+
+**How to avoid:**
+- Deduplicate by tweet ID during merge: `all_tweets = {t['id']: t for t in existing + new}.values()`
+- Store tweets in a dict keyed by ID, not a list
+- Verify no duplicates after merge with assertion
+
+```python
+def accumulate_tweets(existing: list, new: list) -> list:
+    """Merge tweets, deduplicating by ID."""
+    by_id = {t['id']: t for t in existing}
+    by_id.update({t['id']: t for t in new})
+    return list(by_id.values())
+```
+
+---
+
+### Pitfall 8: Missing Rate Limit Header Handling
+
+**What goes wrong:**
+The system fetches tweets without checking rate limit headers, potentially hitting 429 errors. The user timeline endpoint has 10,000 requests/15min at app-level.
+
+**How to avoid:**
+- Parse `x-rate-limit-remaining` from each response
+- Implement soft threshold: if remaining < 10%, slow down
+- Track remaining quota across all operations, not just tweets
+
+---
+
+### Pitfall 9: Suspended/Protected Accounts Breaking Tweet Fetch
+
+**What goes wrong:**
+When fetching tweets for suspended (error 63) or protected (error 179) accounts, the API returns errors. If unhandled, these break the entire enrichment batch.
 
 **Why it happens:**
-- X API returns error code 63 ("User has been suspended") or 179 ("Protected tweets") for these accounts
-- Scraping protected accounts returns redirect-to-login or empty profile
-- Clustering includes placeholder/null data for these, corrupting similarity calculations
+- X API returns error code 63 ("User has been suspended") or 179 ("Protected tweets")
+- These accounts may have been valid when cached profile data was saved
+- The existing enrichment code already handles these at profile level
 
-**Consequences:**
-- Clusters include dead weight accounts
-- Similarity scores are wrong (missing half the profile data)
-- User creates X lists that contain suspended/empty profiles -- embarrassing and useless
+**How to avoid:**
+- Reuse existing suspended/protected detection from profile enrichment
+- Skip tweet fetch for accounts already flagged as suspended/protected
+- Log skipped accounts with reason code
+- Return empty tweet list for these accounts (not an error)
 
-**Prevention:**
-- Filter out suspended accounts (error code 63) immediately after enrichment
-- Flag protected accounts as "protected" in data model, exclude from bio-based clustering
-- Store `suspended: true` / `protected: true` / `deleted: true` as explicit flags, not implicit nulls
-- In clustering algorithm, handle missing fields gracefully (don't treat null bio as empty string -- these are semantically different)
-- Allow user to exclude suspended accounts from list creation
+**Warning signs:**
+- Batch enrichment failing on single account
+- 403 errors when fetching tweets for known accounts
+- Cache not being written for accounts after tweet fetch failure
 
-**Detection:**
-- Count of error 63 responses during enrichment
-- Number of profiles where `public_metrics.followers_count` is 0 and bio is empty (likely suspended)
-
-**Phase:** Phase 2 (API integration) and Phase 4 (Clustering). Data quality filtering must be in the enrichment pipeline.
+**Phase to address:**
+CACHE-01 (integration with existing enrichment)
 
 ---
 
-### 5. Over-Clustering: 50 Micro-Categories Nobody Understands
+## Integration Gotchas
 
-**What goes wrong:** Clustering algorithm produces 40 clusters of 3-5 people each. User is overwhelmed trying to review and name them.
-
-**Why it happens:**
-- Algorithm optimizes for statistical separation, not human usability
-- No minimum cluster size constraint
-- Distance threshold too fine-grained
-- Bio text clustering with TF-IDF on small vocabularies produces spurious similarity
-
-**Consequences:**
-- User abandons review process
-- "Analysis paralysis" -- everything looks similar at small scale
-- Tool feels less useful than a flat list
-
-**Prevention:**
-- Set minimum cluster size (e.g., 5 people minimum for a useful list)
-- Merge clusters with same/similar names automatically
-- Use hierarchical clustering that can be cut at different depths -- let user choose granularity
-- Pre-define category seeds (from the PROJECT.md: Geographic, Occupation, Political Action, Entertainment) to anchor the clustering
-- Present cluster size distribution before user review; warn if it's heavily skewed to small clusters
-
-**Detection:**
-- Report cluster size histogram during clustering
-- Flag if >50% of clusters have fewer than 5 members
-
-**Phase:** Phase 4 (Clustering). Cluster size constraints should be configurable parameters.
+| Integration | Common Mistake | Correct Approach |
+|-------------|----------------|------------------|
+| X API tweets endpoint | Using `max_results=5` (minimum) instead of `100` (efficient) | Use 100 per call to minimize rate limit hits |
+| X API pagination | Ignoring `next_token` field | Loop until `next_token` is None |
+| X API error handling | Retrying 401/403/404 errors | These are permanent failures; don't retry |
+| JSON serialization | Using default `json.dump(int_id)` | Convert IDs to strings first |
+| File locking | Assuming Python's GIL prevents races | Use OS-level file locks for multi-process |
+| Existing cache pattern | Writing to same directory as profiles | Consider separate `data/tweets/` directory |
 
 ---
 
-### 6. Under-Clustering: One Giant Cluster
+## Performance Traps
 
-**What goes wrong:** All 400 followed accounts end up in one cluster because the similarity threshold is too loose.
-
-**Why it happens:**
-- Default distance threshold too permissive
-- Most followed accounts have generic bios ("tweets about tech"), making them seem similar
-- Algorithm treats sparse data as high similarity (few distinguishing features = mathematically similar)
-
-**Consequences:**
-- Tool provides no organizational value
-- User loses trust in clustering quality
-
-**Prevention:**
-- Use silhouette score or elbow method to find optimal cluster count
-- Set a maximum cluster size (e.g., 50 -- matches list size limit from PROJECT.md)
-- Treat bio keyword overlap carefully: a "VC" cluster and "engineer" cluster might both contain "tech" -- use more discriminative features
-- Consider graph-based clustering (follower overlap) in addition to bio text similarity
-
-**Detection:**
-- If single cluster contains >80% of accounts, clustering failed
-- Silhouette score below 0.3
-
-**Phase:** Phase 4 (Clustering).
+| Trap | Symptoms | Prevention | When It Breaks |
+|------|----------|------------|----------------|
+| Large JSON files | Slow reads/writes, memory pressure | Split by user, cap per-user tweet count | >10,000 tweets per user |
+| No pagination limit | API timeouts, rate limit exhaustion | Fetch in batches, respect rate limits | >500 accounts per run |
+| Inline processing | Buffer overflow, dropped tweets | Separate fetch thread from processing thread | High-volume streaming |
+| Full refetch on error | Wasted API quota | Cache partial results, resume from last success | Network instability |
 
 ---
 
-### 7. Bad Category Names: "Cluster 12" or Gibberish
+## Security Mistakes
 
-**What goes wrong:** Algorithm names clusters based on dominant keywords that are weird ("seems", "just", "things") or generic ("people I follow").
-
-**Why it happens:**
-- Keyword extraction from short bios picks up stopwords and filler
-- No constraint that names should be meaningful labels
-- Auto-generated names aren't validated against whether a human would use them
-
-**Consequences:**
-- User doesn't trust the names
-- Review flow slows down because user has to rename everything
-- Some clusters look like spam
-
-**Prevention:**
-- Use LLM to generate cluster names from member profiles (e.g., "Bay Area fintech founders" not "sf finance bay")
-- Filter extracted keywords through a semantic quality filter (discard single words, discard common stopwords, require noun phrases)
-- Present 3-5 name options per cluster for user to pick/edit
-- Allow manual rename as first-class operation during review
-- Use category seeds from PROJECT.md to guide name generation ("This cluster is mostly NYC-based journalists covering tech")
-
-**Detection:**
-- Name plausibility check: if a name would appear in a normal conversation, it's good
-- Flag clusters where top keyword appears in >50% of bios (likely a filler word)
-
-**Phase:** Phase 4 (Clustering) and Phase 5 (Review flow).
+| Mistake | Risk | Prevention |
+|---------|------|------------|
+| Storing OAuth tokens in cache files | Credential exposure | Never cache auth data; use separate secure storage |
+| No input validation on cache path | Path traversal vulnerability | Validate user IDs are numeric strings |
+| Logging tweet contents | Privacy exposure in logs | Log IDs only, not full tweet text |
 
 ---
 
-### 8. robots.txt Violation During Scraping
+## "Looks Done But Isn't" Checklist
 
-**What goes wrong:** Scraping violates X's `robots.txt`, exposing the project to legal/technical risk.
-
-**Why it happens:**
-- X's `robots.txt` disallows most automated access to profile pages
-- Scraping without checking or respecting `robots.txt` is both legally risky and triggers blocks
-- Even with API access, profile page scraping for additional data may violate ToS
-
-**Consequences:**
-- Legal exposure (X has aggressively sued scrapers)
-- IP blocked
-- App suspended from X API
-
-**Prevention:**
-- Check X's `robots.txt` before scraping (`https://x.com/robots.txt`)
-- Use X API for profile data instead of scraping wherever possible
-- If scraping additional fields the API doesn't provide, consult legal review
-- Document which data comes from API vs. scraping, and the legal basis for each
-
-**Note:** This tool already plans to use API + scraping. The scraping portion needs careful scoping to avoid crossing legal lines.
-
-**Phase:** Phase 1 (Scraping decision) and Phase 3 (Scraping implementation). Legal review of scraping scope should happen early.
+- [ ] **Tweet cache read path:** Often missing error handling for corrupted JSON — verify JSONDecodeError is caught and treated as cache miss
+- [ ] **Tweet accumulation:** Often missing deduplication — verify no duplicate IDs after merge
+- [ ] **Incremental fetch:** Often using wrong since_id semantics — verify `since_id` is exclusive
+- [ ] **Cache write atomicity:** Often using plain write instead of atomic replace — verify `os.replace()` pattern
+- [ ] **Rate limit tracking:** Often checking only after error instead of proactively — verify soft threshold monitoring
+- [ ] **ID precision:** Often storing IDs as integers — verify IDs are strings in JSON
 
 ---
 
-## Minor Pitfalls
+## Recovery Strategies
 
-### 9. Data Archive Parsing Failures on Edge Cases
-
-**What goes wrong:** `follower.js` parses correctly for most users but fails on edge cases: escaped characters, Unicode in names, accounts that were renamed or deleted since archive was created.
-
-**Prevention:**
-- Test with multiple real `follower.js` files from different accounts
-- Wrap parsing in try/except per-entry; log failures, continue with valid entries
-- Validate JSON structure before assuming fixed format
-
-**Phase:** Phase 1 (Archive parsing).
+| Pitfall | Recovery Cost | Recovery Steps |
+|---------|---------------|----------------|
+| JSON precision loss | HIGH | Re-fetch all tweets; existing cache unusable |
+| Unbounded growth | MEDIUM | Implement pruning; truncate cache to size limit |
+| Race condition corruption | LOW | Delete corrupted file, re-fetch |
+| Duplicate tweets | LOW | Run deduplication pass on existing cache |
+| Missing rate limit handling | MEDIUM | Add backoff; existing data intact |
 
 ---
 
-### 10. List Creation Fails at X API Level
+## Pitfall-to-Phase Mapping
 
-**What goes wrong:** All clustering is correct but `POST /2/lists` fails because user has hit list creation limits or the account doesn't have list creation enabled.
-
-**Prevention:**
-- Verify list creation is possible with a test call before the full run
-- X has a limit on total lists per account (initially 1,000); warn if approaching
-- Lists must have unique names; handle `409 Conflict` errors gracefully
-
-**Phase:** Phase 5 (List creation).
-
----
-
-### 11. Review Flow Overwhelms User with Unstructured Approvals
-
-**What goes wrong:** Review screen shows 40 clusters with no grouping, sorting, or context. User approves/rejects randomly or abandons.
-
-**Prevention:**
-- Group clusters by suggested category type (Geography, Occupation, etc.)
-- Sort by cluster size (largest first, easiest decisions first)
-- Show member preview without expanding (e.g., "12 people: 3 VCs, 5 engineers, 4 journalists")
-- Provide batch actions: "Approve all clusters with >5 members and confident names"
-- Show confidence scores for cluster membership (member X is 90% confident in this cluster vs. 55%)
-- Allow deferring a cluster ("not sure yet") without blocking others
-
-**Phase:** Phase 5 (Review flow).
-
----
-
-## Phase-Specific Warnings
-
-| Phase | Most Likely Pitfall | Mitigation |
-|-------|--------------------|------------|
-| Phase 1: Archive Parsing | Edge case parsing failures | Test with real files; per-entry error handling |
-| Phase 2: API Integration | Rate limit exhaustion + Auth failures | Batch requests; NTP sync; credential verification |
-| Phase 3: Scraping | IP blocking | Residential proxies; stealth browser; consider managed service |
-| Phase 4: Clustering | Over-clustering / under-clustering | Configurable min/max size; silhouette scoring; seed categories |
-| Phase 5: Review Flow | Unstructured approval chaos | Grouped display; batch actions; confidence scores |
-| Phase 6: List Creation | List limits / naming conflicts | Pre-check limits; handle 409 gracefully |
+| Pitfall | Prevention Phase | Verification |
+|---------|------------------|--------------|
+| JSON precision loss | CACHE-01 | Unit test: write/read tweet with >53-bit ID |
+| Race condition | CACHE-01 | Unit test: concurrent read/write |
+| Unbounded growth | CACHE-02 | Integration test: run 10x, verify cache size bounded |
+| since_id usage | CACHE-01 | Unit test: verify no duplicates after incremental fetch |
+| Retweet handling | CACHE-01 | Integration test: fetch account with quote tweets |
+| Duplicate accumulation | CACHE-02 | Unit test: merge overlapping tweet sets |
+| Rate limit headers | CACHE-01 | Integration test: verify headers parsed, backoff triggered |
+| Suspended/protected skip | CACHE-01 | Unit test: skip accounts flagged in profile cache |
 
 ---
 
 ## Sources
 
-- [Common Developer Mistakes with Twitter API Rate Limits (MoldStud, Feb 2025)](https://moldstud.com/articles/p-twitter-api-rate-limits-common-developer-mistakes) -- MEDIUM confidence
-- [Twitter API Rate Limit Errors: Fix 401, 403, 429 & 503 Fast (Error Medic)](https://errormedic.com/api/twitter-api/twitter-api-rate-limit-errors-fix-401-403-429-503-fast) -- MEDIUM confidence
-- [How to Scrape Twitter/X in 2026 (DEV Community, Mar 2026)](https://dev.to/agenthustler/how-to-scrape-twitterx-in-2026-public-data-rate-limits-and-what-still-works-5bdg) -- MEDIUM confidence
-- [X API Rate Limits Documentation (Official)](https://x-preview.mintlify.app/x-api/fundamentals/rate-limits) -- HIGH confidence
-- [How Anti-Bot Systems Detect Scrapers in 2026 (DEV Community)](https://dev.to/agenthustler/how-anti-bot-systems-detect-scrapers-in-2026-and-how-to-get-past-them-5fpp) -- MEDIUM confidence
-- [Web Scraping Anti-Detection Techniques: The Definitive 2026 Reference (Apify)](https://use-apify.com/blog/web-scraping-anti-detection-2026) -- MEDIUM confidence
-- [Downloading tweet data from a suspended account (X Dev community)](https://devcommunity.x.com/t/downloading-tweet-data-from-a-suspended-account/166817) -- HIGH confidence
-- [Get protected tweets using API v2 (X Dev community)](https://devcommunity.x.com/t/get-protected-tweets-using-api-v2/226274) -- HIGH confidence
-- [X API Response codes and errors (Official)](https://developer.x.com/en/support/x-api/error-troubleshooting) -- HIGH confidence
-- [X API endpoint map (Official)](https://developer.x.com/en/docs/x-api/migrate/x-api-endpoint-map) -- HIGH confidence
-- [X API v2 authentication mapping (Official)](https://docs.x.com/fundamentals/authentication/guides/v2-authentication-mapping) -- HIGH confidence
-- [Semantic Clustering in Site Taxonomy Design (Everestranking)](https://everestranking.com/maximizing-user-experience-with-semantic-clustering-in-site-taxonomy-design/) -- LOW confidence (generic UX, not X-specific)
-- [What is SimClusters on X (Watsspace)](https://watsspace.com/blog/what-is-simclusters-on-x-twitter/) -- MEDIUM confidence
+### Official Documentation (HIGH confidence)
+- [Twitter Developer Docs — Working with Timelines](https://developer.x.com/en/docs/x-api/v1/tweets/timelines/guides/working-with-timelines) — Official docs on since_id/max_id semantics
+- [Twitter Developer Docs — Twitter IDs](https://developer.x.com/en/docs/twitter-ids) — Official docs on 64-bit ID handling
+- [Twitter API Rate Limits 2026 — Sorsa Blog](https://api.sorsa.io/blog/twitter-api-rate-limits-2026) — Current rate limit reference
+
+### Verified Production Bugs (HIGH confidence)
+- [botocore JSONFileCache Race Condition — GitHub Issue #3213](https://github.com/boto/botocore/issues/3213) — Race condition in JSON cache writes
+- [python-diskcache Concurrent Read/Write — GitHub Issue #294](https://github.com/grantjenks/python-diskcache/issues/294) — EOF errors during concurrent access
+- [InMemoryCache Unbounded Growth — LiteLLM PR #14869](https://github.com/BerriAI/litellm/pull/14869) — Memory leak with TTL but no size limit
+
+### Developer Experience (MEDIUM confidence)
+- [Fetching X Timelines with Pay-Per-Use — Dev.to](https://dev.to/ikka/fetching-x-timelines-with-api-v2-pay-per-use-cost-breakdown-caching-and-the-gotchas-1i2o) — Practical caching patterns
+- [API Cost Optimization for Social Media Data — SociaVault](https://sociavault.com/blog/api-cost-optimization-social-media-data) — Industry analysis on caching ROI
+- [Twitter/X Feed System Design — Intervu.dev](https://intervu.dev/blog/twitter-feed-system-design/) — Timeline architecture patterns
+
+### Reference (HIGH confidence)
+- [Snowflake ID — Wikipedia](https://en.wikipedia.org/wiki/Snowflake_ID) — Well-documented ID format
+
+---
+*Pitfalls research for: Tweet caching with accumulation*
+*Researched: 2026-04-12*
