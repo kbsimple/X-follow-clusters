@@ -14,6 +14,7 @@ Usage:
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -27,7 +28,12 @@ def _get_model() -> Any:
     global _model
     if _model is None:
         from gliner import GLiNER
-        _model = GLiNER.from_pretrained("urchade/gliner_base-v2.1")
+        # Suppress all GLiNER/transformers tokenizer warnings
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=FutureWarning, module="huggingface_hub")
+            warnings.filterwarnings("ignore", category=UserWarning, message=".*sentencepiece.*byte fallback.*")
+            warnings.filterwarnings("ignore", category=UserWarning, message=".*truncate.*max_length.*")
+            _model = GLiNER.from_pretrained("urchade/gliner_base-v2.1")
     return _model
 
 
@@ -99,10 +105,12 @@ def extract_entities(
 
     combined_text = " ".join(texts)
 
-    # Run GLiNER prediction
+    # Run GLiNER prediction (suppress tokenizer warnings at inference time)
     model = _get_model()
     labels = ["organization", "location", "job_title"]
-    raw_entities = model.predict_entities(combined_text, labels, threshold=threshold)
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=UserWarning, message=".*truncate.*max_length.*")
+        raw_entities = model.predict_entities(combined_text, labels, threshold=threshold)
 
     # Filter and dedupe by type
     orgs = list({e["text"] for e in raw_entities if e["label"] == "organization"})
