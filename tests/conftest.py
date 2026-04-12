@@ -175,3 +175,12 @@ def temp_export_dir(tmp_path: Path) -> Path:
     export_dir = tmp_path / "export"
     export_dir.mkdir()
     return export_dir
+
+
+@pytest.fixture
+def temp_tweet_cache(tmp_path: Path):
+    """Create a TweetCache with temporary database for testing."""
+    from src.enrich.tweet_cache import TweetCache
+
+    db_path = tmp_path / "tweets.db"
+    return TweetCache(db_path=db_path)
