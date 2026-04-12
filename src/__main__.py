@@ -8,9 +8,16 @@ Orchestrates the full pipeline. Use --help to see available phases.
 from __future__ import annotations
 
 import argparse
+import logging
 import os
 import sys
 from pathlib import Path
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s  %(name)s  %(levelname)s: %(message)s",
+    datefmt="%H:%M:%S",
+)
 
 from src.auth import ensure_authenticated
 
