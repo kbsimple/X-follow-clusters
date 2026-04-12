@@ -17,6 +17,7 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 from typing import Any
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -383,3 +384,197 @@ class TestTweetCacheWatermark:
 
         # Should still return the newest (SAMPLE_TWEET) regardless of insert order
         assert result == SAMPLE_TWEET["id"]
+
+
+class TestIncrementalFetch:
+    """Test XEnrichmentClient.get_recent_tweets with cache-first logic."""
+
+    def test_cache_hit_returns_cached_without_api_call(
+        self, temp_tweet_cache: TweetCache
+    ) -> None:
+        """Test get_recent_tweets returns cached tweets without API call when cache is full."""
+        from src.enrich.api_client import XEnrichmentClient
+
+        user_id = "cache_hit_user"
+        # Pre-populate cache with 60 tweets (more than max_tweets=50)
+        tweets = []
+        for i in range(60):
+            tweets.append({
+                "id": f"tweet_{i}",
+                "text": f"Tweet {i}",
+                "created_at": f"2024-05-21T17:34:{i % 60:02d}.000Z",
+                "public_metrics": {"like_count": i},
+            })
+        temp_tweet_cache.persist_tweets(user_id, tweets)
+
+        # Mock the API client
+        mock_client = MagicMock(spec=XEnrichmentClient)
+        mock_client._fetch_tweets_from_api = MagicMock(return_value=[])
+
+        # Since we need to test the actual method, we'll patch _fetch_tweets_from_api
+        with patch.object(XEnrichmentClient, '_fetch_tweets_from_api') as mock_fetch:
+            # Create a real client instance
+            auth = MagicMock()
+            auth.access_token = "test_token"
+            client = XEnrichmentClient(auth=auth)
+
+            result = client.get_recent_tweets(user_id, max_tweets=50, tweet_cache=temp_tweet_cache)
+
+            # Verify no API call was made
+            mock_fetch.assert_not_called()
+            # Verify cached tweets returned
+            assert len(result) == 50
+
+    def test_cache_miss_fetches_new_tweets_with_since_id(
+        self, temp_tweet_cache: TweetCache
+    ) -> None:
+        """Test get_recent_tweets fetches from API when cache is empty."""
+        from src.enrich.api_client import XEnrichmentClient
+
+        user_id = "cache_miss_user"
+        # Empty cache - no tweets for this user
+
+        new_tweets = [
+            {
+                "id": "new_tweet_1",
+                "text": "New tweet 1",
+                "created_at": "2024-05-22T10:00:00.000Z",
+                "public_metrics": {"like_count": 1},
+            },
+            {
+                "id": "new_tweet_2",
+                "text": "New tweet 2",
+                "created_at": "2024-05-22T10:01:00.000Z",
+                "public_metrics": {"like_count": 2},
+            },
+        ]
+
+        with patch.object(XEnrichmentClient, '_fetch_tweets_from_api') as mock_fetch:
+            mock_fetch.return_value = new_tweets
+
+            auth = MagicMock()
+            auth.access_token = "test_token"
+            client = XEnrichmentClient(auth=auth)
+
+            result = client.get_recent_tweets(user_id, max_tweets=50, tweet_cache=temp_tweet_cache)
+
+            # Verify API was called with since_id=None (no cached tweets)
+            mock_fetch.assert_called_once_with(user_id, 50, since_id=None)
+            # Verify new tweets persisted
+            cached = temp_tweet_cache.load_tweets(user_id)
+            assert cached.count == 2
+            # Verify tweets returned
+            assert len(result) == 2
+
+    def test_partial_cache_uses_since_id_for_new_tweets(
+        self, temp_tweet_cache: TweetCache
+    ) -> None:
+        """Test get_recent_tweets uses since_id when cache has partial tweets."""
+        from src.enrich.api_client import XEnrichmentClient
+
+        user_id = "partial_cache_user"
+        # Pre-populate cache with 30 tweets
+        cached_tweets = []
+        for i in range(30):
+            cached_tweets.append({
+                "id": f"cached_tweet_{i}",
+                "text": f"Cached tweet {i}",
+                "created_at": f"2024-05-21T17:34:{i % 60:02d}.000Z",
+                "public_metrics": {"like_count": i},
+            })
+        temp_tweet_cache.persist_tweets(user_id, cached_tweets)
+
+        # Get the newest tweet ID from cache (watermark)
+        newest_id = temp_tweet_cache.get_newest_tweet_id(user_id)
+
+        new_tweets = [
+            {
+                "id": "new_tweet_partial_1",
+                "text": "New tweet partial 1",
+                "created_at": "2024-05-22T10:00:00.000Z",
+                "public_metrics": {"like_count": 100},
+            },
+        ]
+
+        with patch.object(XEnrichmentClient, '_fetch_tweets_from_api') as mock_fetch:
+            mock_fetch.return_value = new_tweets
+
+            auth = MagicMock()
+            auth.access_token = "test_token"
+            client = XEnrichmentClient(auth=auth)
+
+            result = client.get_recent_tweets(user_id, max_tweets=50, tweet_cache=temp_tweet_cache)
+
+            # Verify API was called with since_id=watermark (20 tweets needed)
+            mock_fetch.assert_called_once()
+            call_args = mock_fetch.call_args
+            assert call_args[0][0] == user_id
+            assert call_args[0][1] == 20  # 50 - 30 = 20 needed
+            assert call_args[1].get('since_id') == newest_id
+
+    def test_merged_result_new_first_then_cached(
+        self, temp_tweet_cache: TweetCache
+    ) -> None:
+        """Test get_recent_tweets returns new tweets first, then cached."""
+        from src.enrich.api_client import XEnrichmentClient
+
+        user_id = "merge_user"
+        # Pre-populate cache with older tweets
+        cached_tweets = [{
+            "id": "cached_old",
+            "text": "Cached old tweet",
+            "created_at": "2024-05-20T10:00:00.000Z",
+            "public_metrics": {"like_count": 5},
+        }]
+        temp_tweet_cache.persist_tweets(user_id, cached_tweets)
+
+        # New tweets (fetched from API) - more recent
+        new_tweets = [{
+            "id": "new_recent",
+            "text": "New recent tweet",
+            "created_at": "2024-05-22T10:00:00.000Z",
+            "public_metrics": {"like_count": 10},
+        }]
+
+        with patch.object(XEnrichmentClient, '_fetch_tweets_from_api') as mock_fetch:
+            mock_fetch.return_value = new_tweets
+
+            auth = MagicMock()
+            auth.access_token = "test_token"
+            client = XEnrichmentClient(auth=auth)
+
+            result = client.get_recent_tweets(user_id, max_tweets=50, tweet_cache=temp_tweet_cache)
+
+            # Verify new tweets come first
+            assert result[0]["id"] == "new_recent"
+            assert result[1]["id"] == "cached_old"
+
+    def test_empty_api_response_returns_cached_gracefully(
+        self, temp_tweet_cache: TweetCache
+    ) -> None:
+        """Test get_recent_tweets returns cached tweets when API returns empty."""
+        from src.enrich.api_client import XEnrichmentClient
+
+        user_id = "empty_api_user"
+        # Pre-populate cache with tweets
+        cached_tweets = [{
+            "id": "cached_tweet",
+            "text": "Cached tweet",
+            "created_at": "2024-05-21T10:00:00.000Z",
+            "public_metrics": {"like_count": 5},
+        }]
+        temp_tweet_cache.persist_tweets(user_id, cached_tweets)
+
+        # API returns empty list (no new tweets)
+        with patch.object(XEnrichmentClient, '_fetch_tweets_from_api') as mock_fetch:
+            mock_fetch.return_value = []
+
+            auth = MagicMock()
+            auth.access_token = "test_token"
+            client = XEnrichmentClient(auth=auth)
+
+            result = client.get_recent_tweets(user_id, max_tweets=50, tweet_cache=temp_tweet_cache)
+
+            # Verify cached tweets returned without error
+            assert len(result) == 1
+            assert result[0]["id"] == "cached_tweet"
