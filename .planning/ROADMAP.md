@@ -30,6 +30,21 @@ Plans:
 - [ ] 07-05-PLAN.md — Update tests for OAuth 2.0
 - [ ] 07-06-PLAN.md — Update README.md and documentation
 
+### Phase 8: 3scrape
+
+**Goal:** Scrape Enhancement — post-analysis, Google search, and link extraction. Add three post-processing capabilities on top of Phase 3 scraping: (1) Entity extraction via GLiNER, (2) Google search fallback via SerpApi, (3) Link extraction and following for accounts with websites but no bios.
+**Requirements**: TBD
+**Depends on:** Phase 7
+**Plans:** 6 plans
+
+Plans:
+- [ ] 08-01-PLAN.md — Install GLiNER dependency, create entity extraction module (src/scrape/entities.py)
+- [ ] 08-02-PLAN.md — Create link follower module (src/scrape/link_follower.py)
+- [ ] 08-03-PLAN.md — Create Google search lookup module (src/scrape/google_lookup.py)
+- [ ] 08-04-PLAN.md — Update scrape_all() orchestrator with Link → Entity → Google pipeline
+- [ ] 08-05-PLAN.md — Update get_text_for_embedding() to include entity fields
+- [ ] 08-06-PLAN.md — Create tests (tests/test_3scrape.py), update CLI
+
 ---
 
-*Last updated: 2026-04-11 — Phase 7 plans created (6 plans in 3 waves)*
+*Last updated: 2026-04-11 — Phase 8 plans created (6 plans in 3 waves)*
