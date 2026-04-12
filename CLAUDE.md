@@ -25,6 +25,26 @@ Technology stack not yet documented. Will populate after codebase mapping or fir
 ## Conventions
 
 Conventions not yet established. Will populate as patterns emerge during development.
+
+### Commit Authorship
+
+All commits must be authored by **Faiser** with email **keepbreakfastsimple@gmail.com**. Before creating a commit, set the environment variables:
+
+```bash
+export GIT_AUTHOR_NAME='Faiser'
+export GIT_AUTHOR_EMAIL='keepbreakfastsimple@gmail.com'
+export GIT_COMMITTER_NAME='Faiser'
+export GIT_COMMITTER_EMAIL='keepbreakfastsimple@gmail.com'
+```
+
+Alternatively, configure the repo locally so rebasing never introduces the wrong author again:
+
+```bash
+git config --local author.name 'Faiser'
+git config --local author.email 'keepbreakfastsimple@gmail.com'
+git config --local committer.name 'Faiser'
+git config --local committer.email 'keepbreakfastsimple@gmail.com'
+```
 <!-- GSD:conventions-end -->
 
 <!-- GSD:architecture-start source:ARCHITECTURE.md -->
