@@ -103,6 +103,11 @@ def get_text_for_embedding(account: dict) -> str:
     if entity_titles:
         parts.append("Title: " + ", ".join(entity_titles))
 
+    # Include recent tweets text for embedding
+    recent_tweets_text = account.get("recent_tweets_text", "")
+    if recent_tweets_text:
+        parts.append(recent_tweets_text)
+
     cleaned = [p.strip() for p in parts if p and p.strip()]
     return " | ".join(cleaned)
 

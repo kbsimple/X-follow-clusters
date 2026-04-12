@@ -272,7 +272,45 @@ def main() -> int:
         except Exception as e:
             print(f"  @{username}: error fetching tweets - {e}")
 
-    # Step 10: Print summary
+    # Step 10: Re-run entity extraction with tweet data
+    print("\n[Step 10] Re-running entity extraction with recent tweets...")
+    for account_id in sample_ids:
+        username = id_to_username.get(account_id, account_id)
+        cache_path = cache_dir / f"{account_id}.json"
+        if not cache_path.exists():
+            continue
+
+        with open(cache_path, encoding="utf-8") as f:
+            account = json.load(f)
+
+        # Show text being processed
+        bio = account.get("description", "") or account.get("bio", "")
+        pinned = account.get("pinned_tweet_text", "")
+        recent = account.get("recent_tweets_text", "")
+
+        print(f"\n  --- @{username} ---")
+        print(f"  Text sources for entity extraction:")
+        if bio:
+            print(f"    Bio: {bio[:60]}{'...' if len(bio) > 60 else ''}")
+        if pinned:
+            print(f"    Pinned: {pinned[:60]}{'...' if len(pinned) > 60 else ''}")
+        if recent:
+            print(f"    Recent tweets: {recent[:60]}{'...' if len(recent) > 60 else ''}")
+
+        # Run entity extraction
+        try:
+            entity_result = extract_entities(account_id, cache_dir=cache_dir)
+            if entity_result:
+                print(f"  Entities extracted:")
+                print(f"    Organizations: {entity_result.orgs}")
+                print(f"    Locations: {entity_result.locs}")
+                print(f"    Job titles: {entity_result.titles}")
+            else:
+                print("  No entities extracted (no text data)")
+        except Exception as e:
+            print(f"  Entity extraction error: {e}")
+
+    # Step 11: Print summary
     print("\n" + "=" * 60)
     print("SUMMARY")
     print("=" * 60)
