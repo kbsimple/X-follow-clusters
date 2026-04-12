@@ -1,5 +1,25 @@
 # Milestones
 
+## v1.1 OAuth 2.0 PKCE + Scrape Enhancement — 2026-04-12
+
+**Status:** ✅ SHIPPED
+**Phases:** 7-8 | **Plans:** 12 | **Tasks:** ~12
+
+### Accomplishments
+
+1. OAuth 2.0 PKCE upgrade — XAuth dataclass migrated to OAuth 2.0 fields, interactive PKCE flow with browser auth, token persistence to data/tokens.json
+2. verify_credentials() and XEnrichmentClient updated for OAuth 2.0 Bearer token
+3. 3scrape pipeline — Link → Entity → Google for cold-start accounts
+4. GLiNER entity extraction from bio + pinned_tweet + external_bio text
+5. Link follower for accounts with websites but no/short bio
+6. SerpApi Google search for accounts with no bio AND no website
+7. get_text_for_embedding() updated with entity fields
+8. 59 tests passing (Phase 7 + Phase 8 test coverage)
+
+**Files changed:** ~20 | **Timeline:** 1 day (4/11)
+
+**Tech debt:** 32 unpushed commits on master (git push pending)
+
 ---
 
 ## v1.0 MVP — 2026-04-06
