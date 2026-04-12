@@ -136,10 +136,11 @@ def verify_credentials(auth: XAuth) -> dict[str, Any]:
     Raises:
         AuthError: If credentials are invalid (401) or rate limited (429).
     """
-    client = tweepy.Client(bearer_token=auth.access_token)
+    bearer = auth.access_token or auth.bearer_token or ""
+    client = tweepy.Client(bearer_token=bearer)
 
     try:
-        response = client.get_me()
+        response = client.get_me(user_auth=False)
         if response is None:
             raise AuthError("GET /2/users/me returned None")
         return response

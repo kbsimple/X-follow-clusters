@@ -25,7 +25,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from src.auth import get_auth, verify_credentials, XAuth
+from src.auth import ensure_authenticated, verify_credentials, XAuth
 from src.enrich.api_client import XEnrichmentClient
 from src.enrich.rate_limiter import ExponentialBackoff, RateLimitError
 from src.parse import parse_following_js, FollowingRecord
@@ -90,7 +90,7 @@ def enrich_all(
 
     # 1. Load credentials and verify
     logger.info("Loading credentials...")
-    auth = get_auth()
+    auth = ensure_authenticated()
     logger.info("Verifying credentials with GET /2/users/me...")
     verify_credentials(auth)
     logger.info("Credentials verified.")
