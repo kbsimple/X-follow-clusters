@@ -119,7 +119,8 @@ All 59 tests passing. All commits on master branch (32 unpushed).
 | 260412-gnd | Remove needs_scraping concept from test_enrich.py | 2026-04-12 | 7de0dec | [260412-gnd-remove-needs-scraping-concept-from-test-](./quick/260412-gnd-remove-needs-scraping-concept-from-test-/) |
 | 260412-gs4 | Update enrichment to run for all accounts with configurable limit | 2026-04-12 | 2162f3b | [260412-gs4-update-enrichment-to-run-for-all-account](./quick/260412-gs4-update-enrichment-to-run-for-all-account/) |
 | 260412-h02 | Integrate 3scrape pipeline into test_enrich.py | 2026-04-12 | f0ab01d | [260412-h02-integrate-3scrape-pipeline-into-test-enr](./quick/260412-h02-integrate-3scrape-pipeline-into-test-enr/) |
+| 260412-hbr | Fix tokenizer warnings and add recent tweets summary | 2026-04-12 | f7d5879 | [260412-hbr-fix-tokenizer-warnings-and-add-recent-po](./quick/260412-hbr-fix-tokenizer-warnings-and-add-recent-po/) |
 
 ---
 
-*Last updated: 2026-04-12 - Completed quick task 260412-h02: Integrate 3scrape pipeline into test_enrich.py*
+*Last updated: 2026-04-12 - Completed quick task 260412-hbr: Fix tokenizer warnings and add recent tweets summary*
