@@ -14,6 +14,7 @@ Usage:
 
 from __future__ import annotations
 
+import json
 import warnings
 from dataclasses import dataclass
 from pathlib import Path
@@ -21,6 +22,9 @@ from typing import Any
 
 # Module-level model singleton (cache across accounts)
 _model = None
+
+# GLiNER max sequence length is ~384 tokens ≈ 1500 chars
+MAX_CHUNK_CHARS = 1200
 
 
 def _get_model() -> Any:
@@ -36,6 +40,43 @@ def _get_model() -> Any:
             warnings.filterwarnings("ignore", category=UserWarning, message=".*truncate.*max_length.*")
             _model = GLiNER.from_pretrained("urchade/gliner_medium-v2.1")
     return _model
+
+
+def _chunk_text(text: str, max_chars: int = MAX_CHUNK_CHARS) -> list[str]:
+    """Split text into chunks that fit within GLiNER's max sequence length.
+
+    Tries to split on sentence boundaries (period + space) when possible.
+
+    Args:
+        text: Text to chunk.
+        max_chars: Maximum characters per chunk (default 1200).
+
+    Returns:
+        List of text chunks.
+    """
+    if len(text) <= max_chars:
+        return [text]
+
+    chunks = []
+    remaining = text
+
+    while remaining:
+        if len(remaining) <= max_chars:
+            chunks.append(remaining)
+            break
+
+        # Find a good split point (period + space) within the limit
+        split_point = remaining.rfind(". ", 0, max_chars)
+        if split_point > max_chars // 2:
+            # Good split point found
+            chunks.append(remaining[:split_point + 1])
+            remaining = remaining[split_point + 2:]
+        else:
+            # No good split point, just cut at max_chars
+            chunks.append(remaining[:max_chars])
+            remaining = remaining[max_chars:]
+
+    return [c.strip() for c in chunks if c.strip()]
 
 
 @dataclass
@@ -60,9 +101,12 @@ def extract_entities(
     cache_dir: Path | str = Path("data/enrichment"),
     threshold: float = 0.5,
 ) -> EntityResult | None:
-    """Extract ORG, LOC, JOB_TITLE entities from an account's bio text.
+    """Extract ORG, LOC, JOB_TITLE entities from an account's text sources.
 
-    Runs on: bio + pinned_tweet_text + external_bio (if available).
+    Processes each text source separately to avoid GLiNER truncation, then
+    merges and dedupes results. This ensures entity extraction works correctly
+    even when recent_tweets_text is very long (50 tweets can be 5000+ chars).
+
     Per D-01: entity types are ORG, LOC, JOB_TITLE.
     Per D-02: run on both bio AND pinned_tweet_text.
     Per D-04: also run on external_bio when available.
@@ -76,8 +120,6 @@ def extract_entities(
     Returns:
         EntityResult if text was found, None if all texts were empty.
     """
-    import json
-
     cache_dir = Path(cache_dir)
     cache_path = cache_dir / f"{username}.json"
 
@@ -87,41 +129,64 @@ def extract_entities(
     with open(cache_path, encoding="utf-8") as f:
         account = json.load(f)
 
-    # Collect text sources (per D-02 and D-04)
-    texts = []
+    # Collect text sources as (source_name, text) pairs
+    sources: list[tuple[str, str]] = []
+
     bio = account.get("bio") or account.get("description", "")
     if bio:
-        texts.append(bio)
+        sources.append(("bio", bio))
 
     pinned = account.get("pinned_tweet_text", "")
     if pinned:
-        texts.append(pinned)
+        sources.append(("pinned", pinned))
 
     external_bio = account.get("external_bio", "")
     if external_bio:
-        texts.append(external_bio)
+        sources.append(("external", external_bio))
 
-    # Include recent tweets text if available
+    # Chunk recent tweets to avoid truncation
     recent_tweets_text = account.get("recent_tweets_text", "")
     if recent_tweets_text:
-        texts.append(recent_tweets_text)
+        chunks = _chunk_text(recent_tweets_text)
+        for i, chunk in enumerate(chunks):
+            sources.append((f"tweets_{i}", chunk))
 
-    if not texts:
+    if not sources:
         return None
 
-    combined_text = " ".join(texts)
-
-    # Run GLiNER prediction (suppress tokenizer warnings at inference time)
+    # Get model and labels
     model = _get_model()
     labels = ["organization", "location", "job_title"]
+
+    # Extract entities from each source separately
+    all_orgs: set[str] = set()
+    all_locs: set[str] = set()
+    all_titles: set[str] = set()
+
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", category=UserWarning, message=".*truncate.*max_length.*")
-        raw_entities = model.predict_entities(combined_text, labels, threshold=threshold)
 
-    # Filter and dedupe by type
-    orgs = list({e["text"] for e in raw_entities if e["label"] == "organization"})
-    locs = list({e["text"] for e in raw_entities if e["label"] == "location"})
-    titles = list({e["text"] for e in raw_entities if e["label"] == "job_title"})
+        for source_name, text in sources:
+            if not text.strip():
+                continue
+
+            raw_entities = model.predict_entities(text, labels, threshold=threshold)
+
+            for entity in raw_entities:
+                label = entity["label"]
+                text_val = entity["text"]
+
+                if label == "organization":
+                    all_orgs.add(text_val)
+                elif label == "location":
+                    all_locs.add(text_val)
+                elif label == "job_title":
+                    all_titles.add(text_val)
+
+    # Convert sets to sorted lists for consistent output
+    orgs = sorted(all_orgs)
+    locs = sorted(all_locs)
+    titles = sorted(all_titles)
 
     result = EntityResult(
         username=username,
