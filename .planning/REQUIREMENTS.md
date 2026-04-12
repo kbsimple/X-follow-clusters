@@ -76,6 +76,12 @@ Format: `[CATEGORY]-[NUMBER]` (e.g., PARSE-01, ENRICH-03)
 - [x] **EXPORT-01**: Export follower records with enrichment data and cluster assignments to Parquet
 - [x] **EXPORT-02**: Export final approved clusters to CSV with list name, member handles, and cluster metadata
 
+### CACHE — Tweet Caching (v1.2)
+
+- [ ] **CACHE-01**: Enrichment reads tweets from cache, fetches only new tweets on miss
+- [ ] **CACHE-02**: Tweets cached with accumulation across runs (dedupe by ID)
+- [ ] **CACHE-03**: No limit on stored posts — cache grows over multiple invocations
+
 ---
 
 ## v2 Requirements (Deferred)
@@ -145,6 +151,9 @@ Format: `[CATEGORY]-[NUMBER]` (e.g., PARSE-01, ENRICH-03)
 | LIST-05 | 6 | X API List Creation |
 | EXPORT-01 | 6 | Data Export |
 | EXPORT-02 | 6 | Data Export |
+| CACHE-01 | 10 | Tweet Caching - cache read and incremental fetch |
+| CACHE-02 | 9, 11 | Tweet Caching - deduplication and accumulation |
+| CACHE-03 | 11 | Tweet Caching - unbounded storage |
 
 ---
-*Last updated: 2026-04-02 after requirements definition*
+*Last updated: 2026-04-12 — v1.2 CACHE requirements added*

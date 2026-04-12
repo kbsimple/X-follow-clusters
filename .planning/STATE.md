@@ -1,64 +1,46 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.1
-milestone_name: OAuth 2.0 PKCE + Scrape Enhancement
-status: shipped
-last_updated: "2026-04-12T06:55:00Z"
+milestone: v1.2
+milestone_name: Caching API Calls
+status: planning
+last_updated: "2026-04-12T07:30:00Z"
 progress:
-  total_phases: 2
-  completed_phases: 2
-  total_plans: 12
-  completed_plans: 12
-  percent: 100
+  total_phases: 3
+  completed_phases: 0
+  total_plans: 7
+  completed_plans: 0
+  percent: 0
 ---
 
 # STATE: X Following Organizer
 
 **Project:** X Following Organizer
 **Core Value:** Transform a flat X following list into organized, named X API lists
-**Milestone:** v1.1 — OAuth 2.0 PKCE + Scrape Enhancement — COMPLETE
-**Next:** v1.2 planning (define next milestone scope)
+**Milestone:** v1.2 — Caching API Calls
+**Phase:** 9 — TweetCache Core (not started)
 
 ---
 
 ## Current Position
 
-**Status:** Milestone complete — both phases shipped. Ready for next milestone.
+**Status:** Roadmap created, awaiting Phase 9 planning
 
-All 59 tests passing. All commits on master branch (32 unpushed).
+**Progress:**
 
----
-
-## Completion Summary
-
-### Phase 7: OAuth 2.0 PKCE Upgrade ✅
-
-6/6 plans complete:
-- [x] 07-01: XAuth dataclass migrated (client_id, client_secret, refresh_token)
-- [x] 07-02: OAuth 2.0 PKCE first-run flow (ensure_authenticated, callback server, token persistence)
-- [x] 07-03: verify_credentials() updated for OAuth 2.0 Bearer token
-- [x] 07-04: XEnrichmentClient updated for OAuth 2.0 Bearer token
-- [x] 07-05: Tests updated for OAuth 2.0 PKCE (13 passing)
-- [x] 07-06: README.md updated with OAuth 2.0 PKCE documentation
-
-### Phase 8: Scrape Enhancement (3scrape) ✅
-
-6/6 plans complete:
-- [x] 08-01: GLiNER dependency + entities.py (entity extraction)
-- [x] 08-02: Link follower module (external bio from website links)
-- [x] 08-03: SerpApi Google search (cold-start account lookup)
-- [x] 08-04: scrape_all() orchestrator with 3scrape pipeline
-- [x] 08-05: get_text_for_embedding() updated with entity fields
-- [x] 08-06: tests/test_3scrape.py + CLI update
-
-**Pipeline order (D-15):** Link → Entity → Google
+```
+v1.2: Caching API Calls
+[ ] Phase 9: TweetCache Core
+[ ] Phase 10: Incremental Fetch
+[ ] Phase 11: Accumulation & Integration
+```
 
 ---
 
 ## Project Reference
 
 **Core value:** Transform a flat following list into organized, named X API lists
-**Current focus:** Milestone v1.1 shipped — next milestone TBD
+
+**Current focus:** Implement tweet caching with accumulation to reduce API quota usage and preserve historical posts across runs
 
 ---
 
@@ -66,8 +48,8 @@ All 59 tests passing. All commits on master branch (32 unpushed).
 
 | Metric | Value |
 |--------|-------|
-| Total Phases | 8 |
-| Plans Completed | 18 / 18 |
+| Total Phases | 11 (8 shipped, 3 planned) |
+| Plans Completed | 18 / 25 |
 | Files changed | ~105 |
 | Lines of code | ~18,500 |
 | Milestones shipped | 2 (v1.0 MVP, v1.1 OAuth+3scrape) |
@@ -79,27 +61,20 @@ All 59 tests passing. All commits on master branch (32 unpushed).
 
 ### Roadmap Evolution
 
-- Phase 8 added: Scrape Enhancement (post analysis, Google search, link extraction)
-- Phase 7 added: Upgrade OAuth 1.0a to OAuth 2.0 PKCE
-- Phase 7 complete: All 6 plans executed (OAuth 2.0 PKCE upgrade complete)
-- Phase 8 complete: All 6 plans executed (3scrape pipeline complete)
+- Phase 11 added: Accumulation & Integration (merge logic, persistence, end-to-end validation)
+- Phase 10 added: Incremental Fetch (since_id watermarks, cache-first logic)
+- Phase 9 added: TweetCache Core (SQLite schema, cache read/write)
+- Phase 8 complete: 3scrape pipeline shipped
+- Phase 7 complete: OAuth 2.0 PKCE upgrade shipped
 
 ### Key Decisions
 
 | Decision | Rationale | Status |
 |----------|-----------|--------|
-| Semi-automated clustering | User wants review/approval before lists | ✅ Validated |
-| NLP clustering (not keyword) | Transformer embeddings outperform TF-IDF | ✅ Validated |
-| Rich profile data (API + scraping) | Maximize clustering accuracy | ✅ Validated |
-| X API lists as final output | User wants native X app lists | ✅ Validated |
-| 5-50 people per cluster/list | User preference; X API limit is 5,000 | ✅ Validated |
-| Private lists by default | User data is internal | ✅ Validated |
-| OpenAI preferred over Anthropic | Checked first when both keys present | ✅ Validated |
-| Batch approve: size≥10, silhouette≥0.5 | High-quality clusters only | ✅ Validated |
-| OAuth 2.0 PKCE | Refresh tokens, higher rate limits, better security | ✅ Implemented |
-| 3scrape: Link → Entity → Google | Coldest accounts get external context first | ✅ Implemented |
-| GLiNER for entity extraction | Extract structured entities from bio text | ✅ Implemented |
-| SerpApi for Google search | External account discovery for cold-start | ✅ Implemented |
+| SQLite for tweet storage | Zero dependencies, PRIMARY KEY deduplication, indexed queries | ✅ Planned |
+| Tweet ID as TEXT storage | X snowflake IDs are 64-bit; prevent precision loss | ✅ Planned |
+| Separate tweets.db database | Enables efficient accumulation vs embedding in account JSON | ✅ Planned |
+| since_id incremental fetch | Reduces API quota usage by 90%+ on subsequent runs | ✅ Planned |
 
 ### Technical Debt
 
@@ -107,23 +82,18 @@ All 59 tests passing. All commits on master branch (32 unpushed).
 - No live API integration tests (Phase 6 debt, unresolved)
 - 32 unpushed commits on master (git push pending)
 
----
+### Active Blockers
 
-### Quick Tasks Completed
-
-| # | Description | Date | Commit | Directory |
-|---|-------------|------|--------|-----------|
-| 260412-g8m | Create enrichment test driver script with .env loading and progress output | 2026-04-12 | 9fa5bdb | [260412-g8m-create-enrichment-test-driver-script-wit](./quick/260412-g8m-create-enrichment-test-driver-script-wit/) |
-| 260412-gdy | Update test_enrich.py with verbose output showing inputs, processing, and results | 2026-04-12 | 270468a | [260412-gdy-update-test-enrich-py-with-verbose-outpu](./quick/260412-gdy-update-test-enrich-py-with-verbose-outpu/) |
-| 260412-gi7 | Prioritize accounts needing scraping in test_enrich.py | 2026-04-12 | 0b83abc | [260412-gi7-prioritize-accounts-needing-scraping-in-](./quick/260412-gi7-prioritize-accounts-needing-scraping-in-/) |
-| 260412-gnd | Remove needs_scraping concept from test_enrich.py | 2026-04-12 | 7de0dec | [260412-gnd-remove-needs-scraping-concept-from-test-](./quick/260412-gnd-remove-needs-scraping-concept-from-test-/) |
-| 260412-gs4 | Update enrichment to run for all accounts with configurable limit | 2026-04-12 | 2162f3b | [260412-gs4-update-enrichment-to-run-for-all-account](./quick/260412-gs4-update-enrichment-to-run-for-all-account/) |
-| 260412-h02 | Integrate 3scrape pipeline into test_enrich.py | 2026-04-12 | f0ab01d | [260412-h02-integrate-3scrape-pipeline-into-test-enr](./quick/260412-h02-integrate-3scrape-pipeline-into-test-enr/) |
-| 260412-hbr | Fix tokenizer warnings and add recent tweets summary | 2026-04-12 | f7d5879 | [260412-hbr-fix-tokenizer-warnings-and-add-recent-po](./quick/260412-hbr-fix-tokenizer-warnings-and-add-recent-po/) |
-| 260412-i4u | Add 50-tweet embedding dimension for topical clustering | 2026-04-12 | 91f7805 | [260412-i4u-add-full-text-embedding-of-the-most-rece](./quick/260412-i4u-add-full-text-embedding-of-the-most-rece/) |
-| 260412-iji | Fix GLiNER truncation by processing text sources separately | 2026-04-12 | 1ec324e | [260412-iji-fix-gliner-truncation-by-processing-text](./quick/260412-iji-fix-gliner-truncation-by-processing-text/) |
-| 260412-iyh | Create test_cluster.py script to exercise clustering logic | 2026-04-12 | 0347e7e | [260412-iyh-create-test-cluster-py-script-to-exercis](./quick/260412-iyh-create-test-cluster-py-script-to-exercis/) |
+None
 
 ---
 
-*Last updated: 2026-04-12 - Completed quick task 260412-iyh: Create test_cluster.py script to exercise clustering logic*
+## Session Continuity
+
+**Last session:** 2026-04-12 — v1.1 milestone shipped, v1.2 roadmap created
+
+**Next action:** Run `/gsd-plan-phase 9` to create implementation plans for TweetCache Core
+
+---
+
+*Last updated: 2026-04-12 — v1.2 roadmap created*
