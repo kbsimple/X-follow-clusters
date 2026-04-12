@@ -121,7 +121,8 @@ All 59 tests passing. All commits on master branch (32 unpushed).
 | 260412-h02 | Integrate 3scrape pipeline into test_enrich.py | 2026-04-12 | f0ab01d | [260412-h02-integrate-3scrape-pipeline-into-test-enr](./quick/260412-h02-integrate-3scrape-pipeline-into-test-enr/) |
 | 260412-hbr | Fix tokenizer warnings and add recent tweets summary | 2026-04-12 | f7d5879 | [260412-hbr-fix-tokenizer-warnings-and-add-recent-po](./quick/260412-hbr-fix-tokenizer-warnings-and-add-recent-po/) |
 | 260412-i4u | Add 50-tweet embedding dimension for topical clustering | 2026-04-12 | 91f7805 | [260412-i4u-add-full-text-embedding-of-the-most-rece](./quick/260412-i4u-add-full-text-embedding-of-the-most-rece/) |
+| 260412-iji | Fix GLiNER truncation by processing text sources separately | 2026-04-12 | 1ec324e | [260412-iji-fix-gliner-truncation-by-processing-text](./quick/260412-iji-fix-gliner-truncation-by-processing-text/) |
 
 ---
 
-*Last updated: 2026-04-12 - Completed quick task 260412-i4u: Add 50-tweet embedding dimension for topical clustering*
+*Last updated: 2026-04-12 - Completed quick task 260412-iji: Fix GLiNER truncation by processing text sources separately*
