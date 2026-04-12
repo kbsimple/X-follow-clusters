@@ -350,9 +350,13 @@ def run_clustering_test(
         print("  ERROR: Need at least 10 accounts for clustering")
         return 1
 
-    # Step 2: Generate or load seeds
+    # Step 2: Generate or load seeds (optional for HDBSCAN)
     print("\n[Step 2] Preparing seed categories...")
-    if auto_seeds:
+    if algorithm == "hdbscan":
+        # HDBSCAN doesn't require seeds - use empty dict
+        seeds = {}
+        print("  HDBSCAN mode: no seeds required (unsupervised clustering)")
+    elif auto_seeds:
         seeds = auto_generate_seeds(accounts)
         print(f"  Auto-generated {len(seeds)} seed categories:")
         for cat, usernames in seeds.items():
@@ -363,6 +367,7 @@ def run_clustering_test(
         seed_path = Path("config/seed_accounts.yaml")
         if not seed_path.exists():
             print("  ERROR: config/seed_accounts.yaml not found")
+            print("  Use --algorithm hdbscan for unsupervised clustering, or create seed_accounts.yaml")
             return 1
         with open(seed_path) as f:
             seed_config = yaml.safe_load(f)
@@ -434,8 +439,8 @@ def main() -> int:
     parser.add_argument(
         "--algorithm",
         choices=["kmeans", "hdbscan"],
-        default="kmeans",
-        help="Clustering algorithm (default: kmeans)",
+        default="hdbscan",
+        help="Clustering algorithm - hdbscan (unsupervised, default) or kmeans (semi-supervised with seeds)",
     )
     parser.add_argument(
         "--no-auto-seeds",

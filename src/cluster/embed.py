@@ -511,13 +511,23 @@ def compute_clusters(
                 "hdbscan is not installed. Install it with: pip install hdbscan>=0.8.0 "
                 "(optional dependency for discovery mode)"
             )
-        logger.info("Running HDBSCAN (min_cluster_size=5, metric='euclidean') …")
-        clusterer = hdbscan.HDBSCAN(min_cluster_size=min_size, metric="euclidean", prediction_data=True)
+        # Use 'leaf' selection method for more, smaller clusters within size bounds
+        # Cap max_cluster_size to 0.75 * max_size to allow rebalancing room
+        effective_max = min(max_size, int(max_size * 0.75) if max_size > 10 else max_size)
+        logger.info("Running HDBSCAN (min_cluster_size=%d, max_cluster_size=%d, method='leaf') …", min_size, effective_max)
+        clusterer = hdbscan.HDBSCAN(
+            min_cluster_size=min_size,
+            max_cluster_size=effective_max,
+            metric="euclidean",
+            prediction_data=True,
+            cluster_selection_method="leaf",  # Produces more, smaller clusters
+        )
+        clusterer.fit(embeddings)
         labels = clusterer.labels_
 
         n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
-        categories = list(seed_embeddings_by_category.keys())
-        category_names = categories + [f"discovered_{i}" for i in range(n_clusters - len(categories))]
+        categories = list(seed_embeddings_by_category.keys()) if seed_embeddings_by_category else []
+        category_names = [f"cluster_{i}" for i in range(n_clusters)]
 
         # Compute centroids from member embeddings
         final_centroids = np.zeros((n_clusters, EMBEDDING_DIM))
@@ -527,9 +537,9 @@ def compute_clusters(
             if member_mask.sum() > 0:
                 final_centroids[cid] = np.mean(embeddings[member_mask], axis=0)
 
-        # Seed centroids still computed for silhouette comparison
+        # Seed centroids still computed for silhouette comparison (if seeds provided)
         for i, cat in enumerate(categories):
-            if seed_embeddings_by_category[cat].shape[0] > 0:
+            if seed_embeddings_by_category.get(cat) is not None and seed_embeddings_by_category[cat].shape[0] > 0:
                 seed_centroids[i] = np.mean(seed_embeddings_by_category[cat], axis=0)
 
     else:
