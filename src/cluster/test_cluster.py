@@ -109,6 +109,116 @@ def auto_generate_seeds(accounts: list[dict], seeds_per_category: int = 3) -> di
     return seeds
 
 
+def generate_cluster_name_description(members: list[dict]) -> tuple[str, str]:
+    """Generate a name and description for a cluster based on its members.
+
+    Uses rule-based analysis of:
+    - Common words in bios
+    - Common locations
+    - Extracted entities (orgs, titles)
+    - Common hashtags/mentions
+
+    Args:
+        members: List of account dicts in the cluster.
+
+    Returns:
+        Tuple of (name, description).
+    """
+    from collections import Counter
+    import re
+
+    # Collect data from members
+    all_words: list[str] = []
+    all_locations: list[str] = []
+    all_orgs: list[str] = []
+    all_titles: list[str] = []
+
+    # Common stop words to filter out
+    stop_words = {
+        "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for",
+        "of", "with", "by", "from", "is", "are", "was", "were", "be", "been",
+        "being", "have", "has", "had", "do", "does", "did", "will", "would",
+        "could", "should", "may", "might", "must", "shall", "can", "need",
+        "i", "me", "my", "we", "our", "you", "your", "he", "him", "his",
+        "she", "her", "it", "its", "they", "them", "their", "this", "that",
+        "these", "those", "am", "im", "ive", "dont", "wont", "cant", "about",
+        "into", "through", "during", "before", "after", "above", "below",
+        "between", "under", "again", "further", "then", "once", "here",
+        "there", "when", "where", "why", "how", "all", "each", "few", "more",
+        "most", "other", "some", "such", "no", "nor", "not", "only", "own",
+        "same", "so", "than", "too", "very", "just", "also", "now", "new",
+        "like", "get", "got", "via", "amp", "http", "https", "com", "org",
+    }
+
+    for member in members:
+        # Bio words
+        bio = (member.get("description", "") or "").lower()
+        # Extract words (alphanumeric)
+        words = re.findall(r'\b[a-z]{3,}\b', bio)
+        all_words.extend([w for w in words if w not in stop_words])
+
+        # Location
+        loc = member.get("location", "")
+        if loc:
+            all_locations.append(loc)
+
+        # Entities
+        orgs = member.get("entity_orgs", [])
+        all_orgs.extend(orgs)
+        titles = member.get("entity_titles", [])
+        all_titles.extend(titles)
+
+    # Count frequencies
+    word_freq = Counter(all_words)
+    loc_freq = Counter(all_locations)
+    org_freq = Counter(all_orgs)
+    title_freq = Counter(all_titles)
+
+    # Generate name based on top signals
+    top_words = [w for w, _ in word_freq.most_common(5)]
+    top_locs = [l for l, _ in loc_freq.most_common(3)]
+    top_orgs = [o for o, _ in org_freq.most_common(3)]
+    top_titles = [t for t, _ in title_freq.most_common(3)]
+
+    # Build name
+    name_parts = []
+
+    # Priority: entities > locations > words
+    if top_titles:
+        name_parts.append(top_titles[0].title())
+    if top_orgs:
+        name_parts.append(top_orgs[0])
+    if top_locs and not name_parts:
+        # Use location as first part if no entities
+        name_parts.append(top_locs[0])
+
+    if name_parts:
+        name = " ".join(name_parts[:2])
+    elif top_words:
+        name = top_words[0].title()
+    else:
+        name = f"Group ({len(members)} accounts)"
+
+    # Build description
+    desc_parts = []
+
+    if top_titles:
+        desc_parts.append(f"Roles: {', '.join(top_titles[:3])}")
+    if top_orgs:
+        desc_parts.append(f"Organizations: {', '.join(top_orgs[:3])}")
+    if top_locs:
+        desc_parts.append(f"Locations: {', '.join(top_locs[:3])}")
+    if top_words:
+        desc_parts.append(f"Topics: {', '.join(top_words[:5])}")
+
+    if desc_parts:
+        description = " | ".join(desc_parts)
+    else:
+        description = f"{len(members)} accounts grouped together"
+
+    return name, description
+
+
 def print_cluster_summary(
     accounts: list[dict],
     embeddings: np.ndarray,
@@ -142,11 +252,15 @@ def print_cluster_summary(
         n_members = len(members)
         silhouette = silhouette_scores.get(cluster_id, 0.0)
 
+        # Generate cluster name and description
+        cluster_name, cluster_desc = generate_cluster_name_description(members)
+
         # Determine cluster quality
         quality = "🟢" if silhouette >= 0.5 else ("🟡" if silhouette >= 0.25 else "🔴")
 
         print(f"\n{'─' * 70}")
-        print(f"📋 Cluster {cluster_id} ({n_members} members, silhouette={silhouette:.2f}) {quality}")
+        print(f"📋 {cluster_name} ({n_members} members, silhouette={silhouette:.2f}) {quality}")
+        print(f"   {cluster_desc}")
         print(f"{'─' * 70}")
 
         # Show sample members (first 10)
@@ -191,6 +305,17 @@ def print_cluster_summary(
     print(f"    🟢 High (≥0.5):         {high_quality} clusters")
     print(f"    🟡 Medium (0.25-0.5):   {medium_quality} clusters")
     print(f"    🔴 Low (<0.25):         {low_quality} clusters")
+
+    # Final summary table of all clusters
+    print("\n" + "-" * 70)
+    print("LISTS TO CREATE:")
+    print("-" * 70)
+    for cluster_id, members in sorted_clusters:
+        cluster_name, cluster_desc = generate_cluster_name_description(members)
+        silhouette = silhouette_scores.get(cluster_id, 0.0)
+        quality_icon = "🟢" if silhouette >= 0.5 else ("🟡" if silhouette >= 0.25 else "🔴")
+        print(f"  • {cluster_name} ({len(members)} members) {quality_icon}")
+        print(f"    {cluster_desc}")
 
     print("\n" + "=" * 70)
 
