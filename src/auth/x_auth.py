@@ -202,8 +202,8 @@ def get_authorization_url(client_id: str, client_secret: str) -> str:
         redirect_uri="http://127.0.0.1:8080/callback",
         scope=["tweet.read", "users.read", "list.read", "list.write", "offline.access"],
     )
-    # Set a default timeout on the underlying requests session to prevent indefinite hangs
-    _oauth2_handler.session.timeout = 30
+    # Set default timeout on the underlying Session to prevent indefinite hangs
+    _oauth2_handler.timeout = 30
     return _oauth2_handler.get_authorization_url()
 
 
