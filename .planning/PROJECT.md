@@ -32,7 +32,7 @@ Transform a flat following list into organized, named X API lists that make it e
 ### Active
 
 - [ ] **CACHE-01**: Enrichment reads tweets from cache, fetches only new tweets on miss
-- [ ] **CACHE-02**: Tweets cached with accumulation across runs (dedupe by ID)
+- [✓] **CACHE-02**: Tweets cached with accumulation across runs (dedupe by ID) — Phase 9 (TweetCache Core complete; full accumulation in Phase 11)
 - [ ] **CACHE-03**: No limit on stored posts — cache grows over multiple invocations
 
 ### Out of Scope
@@ -71,7 +71,8 @@ Transform a flat following list into organized, named X API lists that make it e
 | OAuth 2.0 PKCE | Refresh tokens, higher rate limits, better security | ✅ Validated |
 | 3scrape: Link → Entity → Google | Coldest accounts get external context first | ✅ Validated |
 | HDBSCAN for clustering | Unsupervised, no seed accounts needed | ✅ Validated |
-| Tweet cache accumulation | Fetch latest 50, merge with existing, dedupe by ID | — Pending |
+| Tweet cache accumulation | Fetch latest 50, merge with existing, dedupe by ID | ✅ Validated (Phase 9) |
+| TEXT PRIMARY KEY for tweet_id | X snowflake IDs are 64-bit; prevents precision loss | ✅ Validated (Phase 9) |
 
 ## Evolution
 
@@ -92,4 +93,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-*Last updated: 2026-04-12 after v1.2 milestone started*
+*Last updated: 2026-04-12 after Phase 9 (TweetCache Core) complete*
