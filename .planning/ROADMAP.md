@@ -41,7 +41,7 @@
 **Plans:** 1 plan
 
 Plans:
-- [ ] 09-01-PLAN.md — Create TweetCache class with SQLite schema, load_tweets, persist_tweets methods
+- [x] 09-01-PLAN.md — Create TweetCache class with SQLite schema, load_tweets, persist_tweets methods
 
 ---
 
