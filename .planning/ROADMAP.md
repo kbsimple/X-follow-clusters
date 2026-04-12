@@ -16,7 +16,7 @@
 
 ## Phases
 
-- [ ] **Phase 9: TweetCache Core** — SQLite schema and cache read/write foundation
+- [x] **Phase 9: TweetCache Core** — SQLite schema and cache read/write foundation
 - [ ] **Phase 10: Incremental Fetch** — since_id watermarks for efficient API usage
 - [ ] **Phase 11: Accumulation & Integration** — Merge logic, persistence, and end-to-end validation
 
@@ -59,7 +59,11 @@ Plans:
 3. On cache miss, only new tweets fetched via `since_id` parameter (not full timeline)
 4. XEnrichmentClient.get_recent_tweets() delegates to TweetCache for cache-first logic
 
-**Plans:** TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 10-01-PLAN.md — Add get_newest_tweet_id method to TweetCache for watermark tracking
+- [ ] 10-02-PLAN.md — Modify get_recent_tweets with cache-first logic and since_id integration
 
 ---
 
@@ -86,8 +90,8 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 9. TweetCache Core | 0/1 | Not started | - |
-| 10. Incremental Fetch | 0/2 | Not started | - |
+| 9. TweetCache Core | 1/1 | Complete | 2026-04-12 |
+| 10. Incremental Fetch | 0/2 | Planned | - |
 | 11. Accumulation & Integration | 0/3 | Not started | - |
 
 ---
@@ -103,5 +107,4 @@ Plans:
 **Coverage:** 3/3 requirements mapped ✓
 
 ---
-
-*Last updated: 2026-04-12 — Phase 9 planned*
+*Last updated: 2026-04-12 — Phase 10 planned*
