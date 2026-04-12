@@ -26,8 +26,14 @@ def _get_model() -> Any:
     """Get or create the GLiNER model singleton."""
     global _model
     if _model is None:
+        import warnings
         from gliner import GLiNER
-        _model = GLiNER.from_pretrained("urchade/gliner_medium-v2.1")
+
+        # Suppress huggingface_hub deprecation warning for resume_download
+        # (GLiNER passes this internally; warning is from huggingface_hub, not our code)
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=FutureWarning, module="huggingface_hub")
+            _model = GLiNER.from_pretrained("urchade/gliner_medium-v2.1")
     return _model
 
 
