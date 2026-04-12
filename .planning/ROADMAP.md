@@ -38,7 +38,10 @@
 3. TweetCache class can persist tweets to SQLite with automatic deduplication via PRIMARY KEY
 4. Tweet IDs stored as TEXT to prevent JavaScript precision loss (X snowflake IDs are 64-bit)
 
-**Plans:** TBD
+**Plans:** 1 plan
+
+Plans:
+- [ ] 09-01-PLAN.md — Create TweetCache class with SQLite schema, load_tweets, persist_tweets methods
 
 ---
 
@@ -83,7 +86,7 @@
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 9. TweetCache Core | 0/2 | Not started | - |
+| 9. TweetCache Core | 0/1 | Not started | - |
 | 10. Incremental Fetch | 0/2 | Not started | - |
 | 11. Accumulation & Integration | 0/3 | Not started | - |
 
@@ -101,4 +104,4 @@
 
 ---
 
-*Last updated: 2026-04-12 — v1.2 roadmap created*
+*Last updated: 2026-04-12 — Phase 9 planned*
