@@ -27,7 +27,7 @@ def _get_model() -> Any:
     global _model
     if _model is None:
         from gliner import GLiNER
-        _model = GLiNER.from_pretrained("urchade/gliner_base-v2.1")
+        _model = GLiNER.from_pretrained("urchade/gliner_medium-v2.1")
     return _model
 
 
