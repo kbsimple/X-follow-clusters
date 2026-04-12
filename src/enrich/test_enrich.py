@@ -14,6 +14,7 @@ Usage:
 
 from __future__ import annotations
 
+import json
 import logging
 import sys
 from pathlib import Path
@@ -239,7 +240,39 @@ def main() -> int:
         except Exception as e:
             print(f"  Google lookup: error - {e}")
 
-    # Step 9: Print summary
+    # Step 9: Fetch recent tweets
+    print("\n[Step 9] Fetching recent tweets...")
+    tweets_fetched_count = 0
+
+    for account_id in sample_ids:
+        username = id_to_username.get(account_id, account_id)
+        try:
+            tweets = client.get_recent_tweets(account_id)
+            if tweets:
+                print(f"  @{username}: {len(tweets)} recent tweets")
+                for i, tweet in enumerate(tweets[:3]):  # Show first 3
+                    text_preview = tweet.get("text", "")[:80]
+                    if len(tweet.get("text", "")) > 80:
+                        text_preview += "..."
+                    print(f"    [{i+1}] {text_preview}")
+                tweets_fetched_count += 1
+
+                # Cache tweets
+                cache_path = cache_dir / f"{account_id}.json"
+                if cache_path.exists():
+                    with open(cache_path, encoding="utf-8") as f:
+                        account = json.load(f)
+                    account["recent_tweets"] = tweets
+                    # Also create combined text for entity extraction
+                    account["recent_tweets_text"] = " ".join(t.get("text", "") for t in tweets)
+                    with open(cache_path, "w", encoding="utf-8") as f:
+                        json.dump(account, f, indent=2)
+            else:
+                print(f"  @{username}: no recent tweets")
+        except Exception as e:
+            print(f"  @{username}: error fetching tweets - {e}")
+
+    # Step 10: Print summary
     print("\n" + "=" * 60)
     print("SUMMARY")
     print("=" * 60)
@@ -251,6 +284,7 @@ def main() -> int:
     print(f"    Link followed:                   {link_followed_count}")
     print(f"    Entities extracted:              {entities_extracted_count}")
     print(f"    Google looked up:                {google_looked_up_count}")
+    print(f"\n  Recent tweets fetched:             {tweets_fetched_count}")
 
     if errors:
         print("\n  Error details:")

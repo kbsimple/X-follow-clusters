@@ -14,6 +14,7 @@ Usage:
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -26,13 +27,13 @@ def _get_model() -> Any:
     """Get or create the GLiNER model singleton."""
     global _model
     if _model is None:
-        import warnings
         from gliner import GLiNER
 
-        # Suppress huggingface_hub deprecation warning for resume_download
-        # (GLiNER passes this internally; warning is from huggingface_hub, not our code)
+        # Suppress all GLiNER/transformers tokenizer warnings
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=FutureWarning, module="huggingface_hub")
+            warnings.filterwarnings("ignore", category=UserWarning, message=".*sentencepiece.*byte fallback.*")
+            warnings.filterwarnings("ignore", category=UserWarning, message=".*truncate.*max_length.*")
             _model = GLiNER.from_pretrained("urchade/gliner_medium-v2.1")
     return _model
 
@@ -100,15 +101,22 @@ def extract_entities(
     if external_bio:
         texts.append(external_bio)
 
+    # Include recent tweets text if available
+    recent_tweets_text = account.get("recent_tweets_text", "")
+    if recent_tweets_text:
+        texts.append(recent_tweets_text)
+
     if not texts:
         return None
 
     combined_text = " ".join(texts)
 
-    # Run GLiNER prediction
+    # Run GLiNER prediction (suppress tokenizer warnings at inference time)
     model = _get_model()
     labels = ["organization", "location", "job_title"]
-    raw_entities = model.predict_entities(combined_text, labels, threshold=threshold)
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=UserWarning, message=".*truncate.*max_length.*")
+        raw_entities = model.predict_entities(combined_text, labels, threshold=threshold)
 
     # Filter and dedupe by type
     orgs = list({e["text"] for e in raw_entities if e["label"] == "organization"})
