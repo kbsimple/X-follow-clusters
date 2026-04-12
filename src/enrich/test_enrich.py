@@ -25,6 +25,7 @@ from src.auth.x_auth import ensure_authenticated
 from src.enrich.api_client import USER_FIELDS, XEnrichmentClient
 from src.parse.following_parser import parse_following_js
 from src.scrape import follow_account_links, extract_entities, google_lookup_account
+from src.cluster.embed import store_tweet_embedding
 
 # Configure logging
 logging.basicConfig(
@@ -240,14 +241,15 @@ def main() -> int:
         except Exception as e:
             print(f"  Google lookup: error - {e}")
 
-    # Step 9: Fetch recent tweets
-    print("\n[Step 9] Fetching recent tweets...")
+    # Step 9: Fetch recent tweets (50 for full topical embedding)
+    print("\n[Step 9] Fetching recent tweets (up to 50 per account)...")
     tweets_fetched_count = 0
+    tweet_embeddings_created = 0
 
     for account_id in sample_ids:
         username = id_to_username.get(account_id, account_id)
         try:
-            tweets = client.get_recent_tweets(account_id)
+            tweets = client.get_recent_tweets(account_id, max_tweets=50)
             if tweets:
                 print(f"  @{username}: {len(tweets)} recent tweets")
                 for i, tweet in enumerate(tweets[:3]):  # Show first 3
@@ -267,6 +269,15 @@ def main() -> int:
                     account["recent_tweets_text"] = " ".join(t.get("text", "") for t in tweets)
                     with open(cache_path, "w", encoding="utf-8") as f:
                         json.dump(account, f, indent=2)
+
+                    # Create tweet embedding for topical clustering
+                    embedding = store_tweet_embedding(account_id, cache_dir=cache_dir)
+                    if embedding:
+                        print(f"    → Tweet embedding: {len(embedding)} dimensions")
+                        # Show preview of embedding values
+                        preview = ", ".join(f"{v:.3f}" for v in embedding[:5])
+                        print(f"      Preview: [{preview}, ...]")
+                        tweet_embeddings_created += 1
             else:
                 print(f"  @{username}: no recent tweets")
         except Exception as e:
@@ -323,6 +334,7 @@ def main() -> int:
     print(f"    Entities extracted:              {entities_extracted_count}")
     print(f"    Google looked up:                {google_looked_up_count}")
     print(f"\n  Recent tweets fetched:             {tweets_fetched_count}")
+    print(f"  Tweet embeddings created:          {tweet_embeddings_created}")
 
     if errors:
         print("\n  Error details:")

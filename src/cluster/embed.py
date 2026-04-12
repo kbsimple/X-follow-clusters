@@ -37,6 +37,17 @@ EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 EMBEDDING_DIM = 384  # all-MiniLM-L6-v2 output dimension
 MIN_TEXT_ACCOUNTS = 10  # minimum accounts with non-empty text to proceed
 
+# Module-level model singleton for tweet embeddings
+_tweet_embedding_model: SentenceTransformer | None = None
+
+
+def _get_tweet_embedding_model() -> SentenceTransformer:
+    """Get or create the SentenceTransformer model singleton for tweet embeddings."""
+    global _tweet_embedding_model
+    if _tweet_embedding_model is None:
+        _tweet_embedding_model = SentenceTransformer(EMBEDDING_MODEL)
+    return _tweet_embedding_model
+
 
 # ---------------------------------------------------------------------------
 # Data classes
@@ -110,6 +121,79 @@ def get_text_for_embedding(account: dict) -> str:
 
     cleaned = [p.strip() for p in parts if p and p.strip()]
     return " | ".join(cleaned)
+
+
+# ---------------------------------------------------------------------------
+# Tweet Embedding (Topical Dimension)
+# ---------------------------------------------------------------------------
+
+def create_tweet_embedding(account: dict) -> list[float] | None:
+    """Create a dedicated embedding from recent tweets for topical clustering.
+
+    This is a separate embedding dimension from the main account embedding.
+    It captures what the account posts about (topical similarity) rather than
+    who they are (identity similarity from bio/location).
+
+    Parameters
+    ----------
+    account : dict
+        Account dict with 'recent_tweets_text' field.
+
+    Returns
+    -------
+    list[float] | None
+        384-dimensional embedding as a list (JSON-serializable), or None if
+        no tweet text available.
+    """
+    tweet_text = account.get("recent_tweets_text", "")
+    if not tweet_text or not tweet_text.strip():
+        return None
+
+    model = _get_tweet_embedding_model()
+    embedding = model.encode(tweet_text, normalize_embeddings=True)
+    return embedding.tolist()
+
+
+def store_tweet_embedding(
+    account_id: str,
+    cache_dir: Path | str = Path("data/enrichment"),
+) -> list[float] | None:
+    """Create and store a tweet embedding for an account.
+
+    Loads the account cache file, creates the tweet embedding, and stores
+    it back to the cache with key 'tweet_embedding'.
+
+    Parameters
+    ----------
+    account_id : str
+        Account ID (cache file stem).
+    cache_dir : Path | str
+        Directory containing enrichment cache files.
+
+    Returns
+    -------
+    list[float] | None
+        The stored embedding, or None if no tweet text available.
+    """
+    cache_dir = Path(cache_dir)
+    cache_path = cache_dir / f"{account_id}.json"
+
+    if not cache_path.exists():
+        return None
+
+    with open(cache_path, encoding="utf-8") as f:
+        account = json.load(f)
+
+    embedding = create_tweet_embedding(account)
+    if embedding is None:
+        return None
+
+    account["tweet_embedding"] = embedding
+
+    with open(cache_path, "w", encoding="utf-8") as f:
+        json.dump(account, f, indent=2)
+
+    return embedding
 
 
 # ---------------------------------------------------------------------------

@@ -212,26 +212,49 @@ class XEnrichmentClient:
     def get_recent_tweets(
         self,
         user_id: str,
-        max_tweets: int = 5,
+        max_tweets: int = 50,
     ) -> list[dict[str, Any]]:
-        """Fetch recent tweets for a user.
+        """Fetch recent tweets for a user with pagination support.
 
         Args:
             user_id: X user ID.
-            max_tweets: Maximum tweets to fetch (default 5).
+            max_tweets: Maximum tweets to fetch (default 50).
 
         Returns:
             List of tweet dicts with 'text' and 'created_at' fields.
         """
+        all_tweets: list[dict[str, Any]] = []
+        next_token: str | None = None
+
         try:
-            response = self._client.get_users_tweets(
-                id=user_id,
-                max_results=min(max_tweets, 10),  # API allows 5-100
-                tweet_fields=["created_at", "public_metrics"],
-                exclude=["retweets", "replies"],  # Just original tweets
-            )
-            body = response.json()
-            return body.get("data") or []
+            while len(all_tweets) < max_tweets:
+                # API allows 5-100 per call, use 100 for efficiency
+                max_results = min(100, max_tweets - len(all_tweets))
+
+                response = self._client.get_users_tweets(
+                    id=user_id,
+                    max_results=max_results,
+                    tweet_fields=["created_at", "public_metrics"],
+                    exclude=["retweets", "replies"],  # Just original tweets
+                    pagination_token=next_token if next_token else None,
+                )
+                body = response.json()
+
+                # Accumulate tweets from this page
+                page_tweets = body.get("data") or []
+                all_tweets.extend(page_tweets)
+
+                # Check for next page
+                meta = body.get("meta") or {}
+                next_token = meta.get("next_token")
+
+                # Stop if no more pages or we have enough tweets
+                if not next_token or len(all_tweets) >= max_tweets:
+                    break
+
+            # Trim to exact max_tweets requested
+            return all_tweets[:max_tweets]
+
         except Exception as e:
             logger.warning("Failed to fetch tweets for %s: %s", user_id, e)
-            return []
+            return all_tweets  # Return what we collected before the error
