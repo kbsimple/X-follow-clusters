@@ -580,3 +580,105 @@ class TestIncrementalFetch:
             assert len(result) == 1
             # Cached tweets have 'tweet_id' key from database schema
             assert result[0]["tweet_id"] == "cached_tweet"
+
+    def test_no_tweet_cache_uses_original_behavior(
+        self, temp_tweet_cache: TweetCache
+    ) -> None:
+        """Test get_recent_tweets without tweet_cache uses original API behavior."""
+        from src.enrich.api_client import XEnrichmentClient
+
+        user_id = "no_cache_user"
+        new_tweets = [
+            {
+                "id": "api_tweet_1",
+                "text": "API tweet 1",
+                "created_at": "2024-05-22T10:00:00.000Z",
+                "public_metrics": {"like_count": 1},
+            },
+        ]
+
+        with patch.object(XEnrichmentClient, '_fetch_tweets_from_api') as mock_fetch:
+            mock_fetch.return_value = new_tweets
+
+            auth = MagicMock()
+            auth.access_token = "test_token"
+            client = XEnrichmentClient(auth=auth)
+
+            # Call without tweet_cache parameter
+            result = client.get_recent_tweets(user_id, max_tweets=50)
+
+            # Verify API was called directly (no cache logic)
+            mock_fetch.assert_called_once_with(user_id, 50)
+            assert len(result) == 1
+            assert result[0]["id"] == "api_tweet_1"
+
+    def test_cache_count_less_than_max_fetches_remaining(
+        self, temp_tweet_cache: TweetCache
+    ) -> None:
+        """Test get_recent_tweets fetches only the remaining count when cache has partial tweets."""
+        from src.enrich.api_client import XEnrichmentClient
+
+        user_id = "partial_fetch_user"
+        # Pre-populate cache with exactly 30 tweets
+        cached_tweets = []
+        for i in range(30):
+            cached_tweets.append({
+                "id": f"cached_{i}",
+                "text": f"Cached {i}",
+                "created_at": f"2024-05-21T17:34:{i % 60:02d}.000Z",
+                "public_metrics": {"like_count": i},
+            })
+        temp_tweet_cache.persist_tweets(user_id, cached_tweets)
+
+        new_tweets = [
+            {
+                "id": "new_1",
+                "text": "New 1",
+                "created_at": "2024-05-22T10:00:00.000Z",
+                "public_metrics": {"like_count": 100},
+            },
+        ]
+
+        with patch.object(XEnrichmentClient, '_fetch_tweets_from_api') as mock_fetch:
+            mock_fetch.return_value = new_tweets
+
+            auth = MagicMock()
+            auth.access_token = "test_token"
+            client = XEnrichmentClient(auth=auth)
+
+            result = client.get_recent_tweets(user_id, max_tweets=50, tweet_cache=temp_tweet_cache)
+
+            # Verify API was called for exactly 20 tweets (50 - 30 = 20)
+            mock_fetch.assert_called_once()
+            call_args = mock_fetch.call_args
+            assert call_args[0][1] == 20  # max_tweets argument
+
+    def test_api_exception_returns_partial_results(
+        self, temp_tweet_cache: TweetCache
+    ) -> None:
+        """Test get_recent_tweets returns cached tweets when API raises exception."""
+        from src.enrich.api_client import XEnrichmentClient
+
+        user_id = "exception_user"
+        # Pre-populate cache with tweets
+        cached_tweets = [{
+            "id": "cached_exception",
+            "text": "Cached exception tweet",
+            "created_at": "2024-05-21T10:00:00.000Z",
+            "public_metrics": {"like_count": 5},
+        }]
+        temp_tweet_cache.persist_tweets(user_id, cached_tweets)
+
+        with patch.object(XEnrichmentClient, '_fetch_tweets_from_api') as mock_fetch:
+            # API raises exception
+            mock_fetch.side_effect = Exception("API error")
+
+            auth = MagicMock()
+            auth.access_token = "test_token"
+            client = XEnrichmentClient(auth=auth)
+
+            result = client.get_recent_tweets(user_id, max_tweets=50, tweet_cache=temp_tweet_cache)
+
+            # Should return cached tweets even though API failed
+            assert len(result) == 1
+            assert result[0]["tweet_id"] == "cached_exception"

@@ -252,11 +252,15 @@ class XEnrichmentClient:
         # Cache miss or partial - fetch only new tweets
         since_id = tweet_cache.get_newest_tweet_id(user_id)
 
-        new_tweets = self._fetch_tweets_from_api(
-            user_id,
-            max_tweets - cached_result.count,  # Only fetch what we need
-            since_id=since_id,
-        )
+        new_tweets: list[dict[str, Any]] = []
+        try:
+            new_tweets = self._fetch_tweets_from_api(
+                user_id,
+                max_tweets - cached_result.count,  # Only fetch what we need
+                since_id=since_id,
+            )
+        except Exception as e:
+            logger.warning("API fetch failed for %s: %s, returning cached tweets", user_id, e)
 
         if new_tweets:
             inserted = tweet_cache.persist_tweets(user_id, new_tweets)
