@@ -285,32 +285,32 @@ class TestTweetCachePersist:
 class TestTweetCacheDeduplication:
     """Test tweet deduplication via PRIMARY KEY constraint."""
 
-    def test_deduplication_with_same_tweet_different_users(
+    def test_same_tweet_for_different_user_is_still_deduplicated(
         self, temp_tweet_cache: TweetCache
     ) -> None:
-        """Test same tweet_id can exist for different users."""
+        """Test that INSERT OR IGNORE prevents duplicate tweet_ids.
+
+        Note: tweet_id is globally unique on X, so the same tweet_id
+        cannot exist for different users. If someone tries to insert
+        the same tweet_id for a different user, it's still deduplicated.
+        """
         user_1 = "user_a"
         user_2 = "user_b"
 
-        # Same tweet for different users
-        temp_tweet_cache.persist_tweets(user_1, [SAMPLE_TWEET])
-        temp_tweet_cache.persist_tweets(user_2, [SAMPLE_TWEET])
+        # Insert same tweet_id for user_1, then try for user_2
+        count_1 = temp_tweet_cache.persist_tweets(user_1, [SAMPLE_TWEET])
+        count_2 = temp_tweet_cache.persist_tweets(user_2, [SAMPLE_TWEET])
 
+        # First insert succeeds, second is deduplicated (0 rows)
+        assert count_1 == 1
+        assert count_2 == 0  # Deduplicated via INSERT OR IGNORE
+
+        # Only user_1 has the tweet
         result_1 = temp_tweet_cache.load_tweets(user_1)
         result_2 = temp_tweet_cache.load_tweets(user_2)
 
-        # Both users should have the tweet
         assert result_1.count == 1
-        assert result_2.count == 1
-
-        # But in the database, there should be 2 rows
-        conn = sqlite3.connect(temp_tweet_cache.db_path)
-        cursor = conn.cursor()
-        cursor.execute("SELECT COUNT(*) FROM tweets WHERE tweet_id = ?", (SAMPLE_TWEET["id"],))
-        total_count = cursor.fetchone()[0]
-        conn.close()
-
-        assert total_count == 2
+        assert result_2.count == 0
 
     def test_tweet_id_as_text_preserves_large_ids(
         self, temp_tweet_cache: TweetCache
