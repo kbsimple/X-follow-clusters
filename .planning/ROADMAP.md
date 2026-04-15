@@ -82,7 +82,11 @@ Plans:
 4. Consumer layer (embed.py, entities.py) receives merged tweet list unchanged
 5. Integration tests cover first fetch vs subsequent, deduplication, and embedding rebuild
 
-**Plans:** TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 11-01-PLAN.md — Integrate TweetCache in test_enrich.py with error handling
+- [ ] 11-02-PLAN.md — Add comprehensive integration tests for accumulation flow
 
 ---
 
@@ -92,7 +96,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 9. TweetCache Core | 1/1 | Complete | 2026-04-12 |
 | 10. Incremental Fetch | 2/2 | Complete | 2026-04-12 |
-| 11. Accumulation & Integration | 0/3 | Not started | - |
+| 11. Accumulation & Integration | 0/2 | Not started | - |
 
 ---
 
@@ -107,4 +111,4 @@ Plans:
 **Coverage:** 3/3 requirements mapped
 
 ---
-*Last updated: 2026-04-12 — Phase 10 complete*
+*Last updated: 2026-04-12 — Phase 11 plans created*
