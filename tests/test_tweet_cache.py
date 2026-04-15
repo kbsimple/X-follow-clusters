@@ -682,3 +682,163 @@ class TestIncrementalFetch:
             # Should return cached tweets even though API failed
             assert len(result) == 1
             assert result[0]["tweet_id"] == "cached_exception"
+
+
+class TestIntegrationAccumulation:
+    """End-to-end integration tests for tweet accumulation."""
+
+    def test_first_fetch_persists_tweets(
+        self, temp_tweet_cache: TweetCache
+    ) -> None:
+        """First enrichment run: empty cache -> API fetch -> persist."""
+        from src.enrich.api_client import XEnrichmentClient
+
+        user_id = "first_fetch_user"
+        new_tweets = [
+            {"id": "tweet_1", "text": "First tweet", "created_at": "2024-05-21T10:00:00.000Z"},
+            {"id": "tweet_2", "text": "Second tweet", "created_at": "2024-05-21T11:00:00.000Z"},
+            {"id": "tweet_3", "text": "Third tweet", "created_at": "2024-05-21T12:00:00.000Z"},
+        ]
+
+        with patch.object(XEnrichmentClient, '_fetch_tweets_from_api') as mock_fetch:
+            mock_fetch.return_value = new_tweets
+            auth = MagicMock()
+            auth.access_token = "test_token"
+            client = XEnrichmentClient(auth=auth)
+
+            result = client.get_recent_tweets(user_id, max_tweets=50, tweet_cache=temp_tweet_cache)
+
+        cached = temp_tweet_cache.load_tweets(user_id)
+        assert cached.count == 3
+        assert len(result) == 3
+
+    def test_subsequent_fetch_uses_watermark_and_merges(
+        self, temp_tweet_cache: TweetCache
+    ) -> None:
+        """Subsequent run: cache exists -> since_id used -> new + cached merged."""
+        from src.enrich.api_client import XEnrichmentClient
+
+        user_id = "subsequent_user"
+        old_tweets = [
+            {"id": "old_1", "text": "Old tweet", "created_at": "2024-05-20T10:00:00.000Z"},
+        ]
+        temp_tweet_cache.persist_tweets(user_id, old_tweets)
+
+        watermark = temp_tweet_cache.get_newest_tweet_id(user_id)
+        assert watermark == "old_1"
+
+        new_tweets = [
+            {"id": "new_1", "text": "New tweet", "created_at": "2024-05-21T10:00:00.000Z"},
+        ]
+
+        with patch.object(XEnrichmentClient, '_fetch_tweets_from_api') as mock_fetch:
+            mock_fetch.return_value = new_tweets
+            auth = MagicMock()
+            auth.access_token = "test_token"
+            client = XEnrichmentClient(auth=auth)
+
+            result = client.get_recent_tweets(user_id, max_tweets=50, tweet_cache=temp_tweet_cache)
+            call_kwargs = mock_fetch.call_args[1]
+            assert call_kwargs.get('since_id') == watermark
+
+        assert len(result) == 2  # 1 new + 1 cached
+        cached = temp_tweet_cache.load_tweets(user_id)
+        assert cached.count == 2
+
+    def test_deduplication_same_tweet_id_stored_once(
+        self, temp_tweet_cache: TweetCache
+    ) -> None:
+        """Same tweet ID from API stored only once via PRIMARY KEY."""
+        from src.enrich.api_client import XEnrichmentClient
+
+        user_id = "dedupe_user"
+        duplicate_tweets = [
+            {"id": "same_tweet", "text": "Same", "created_at": "2024-05-21T10:00:00.000Z"},
+            {"id": "same_tweet", "text": "Same", "created_at": "2024-05-21T10:00:00.000Z"},
+        ]
+
+        with patch.object(XEnrichmentClient, '_fetch_tweets_from_api') as mock_fetch:
+            mock_fetch.return_value = duplicate_tweets
+            auth = MagicMock()
+            auth.access_token = "test_token"
+            client = XEnrichmentClient(auth=auth)
+
+            client.get_recent_tweets(user_id, max_tweets=50, tweet_cache=temp_tweet_cache)
+
+        cached = temp_tweet_cache.load_tweets(user_id)
+        assert cached.count == 1  # Deduplicated
+
+    def test_accumulation_across_multiple_runs(
+        self, temp_tweet_cache: TweetCache
+    ) -> None:
+        """Tweet count grows across multiple enrichment runs."""
+        from src.enrich.api_client import XEnrichmentClient
+
+        user_id = "multi_run_user"
+
+        # Run 1: 3 tweets
+        run1_tweets = [
+            {"id": f"run1_{i}", "text": f"Run 1 tweet {i}", "created_at": f"2024-05-20T1{i}:00:00.000Z"}
+            for i in range(3)
+        ]
+        with patch.object(XEnrichmentClient, '_fetch_tweets_from_api') as mock_fetch:
+            mock_fetch.return_value = run1_tweets
+            auth = MagicMock()
+            auth.access_token = "test_token"
+            client = XEnrichmentClient(auth=auth)
+            client.get_recent_tweets(user_id, max_tweets=50, tweet_cache=temp_tweet_cache)
+        assert temp_tweet_cache.load_tweets(user_id).count == 3
+
+        # Run 2: 2 more tweets
+        run2_tweets = [
+            {"id": f"run2_{i}", "text": f"Run 2 tweet {i}", "created_at": f"2024-05-21T1{i}:00:00.000Z"}
+            for i in range(2)
+        ]
+        with patch.object(XEnrichmentClient, '_fetch_tweets_from_api') as mock_fetch:
+            mock_fetch.return_value = run2_tweets
+            client.get_recent_tweets(user_id, max_tweets=50, tweet_cache=temp_tweet_cache)
+        assert temp_tweet_cache.load_tweets(user_id).count == 5
+
+        # Run 3: empty API response
+        with patch.object(XEnrichmentClient, '_fetch_tweets_from_api') as mock_fetch:
+            mock_fetch.return_value = []
+            client.get_recent_tweets(user_id, max_tweets=50, tweet_cache=temp_tweet_cache)
+        assert temp_tweet_cache.load_tweets(user_id).count == 5  # Historical preserved
+
+    def test_watermark_tracks_newest_tweet(
+        self, temp_tweet_cache: TweetCache
+    ) -> None:
+        """get_newest_tweet_id returns tweet with highest created_at."""
+        user_id = "watermark_user"
+        tweets = [
+            {"id": "old_tweet", "text": "Old", "created_at": "2024-05-19T10:00:00.000Z"},
+            {"id": "new_tweet", "text": "New", "created_at": "2024-05-21T10:00:00.000Z"},
+            {"id": "mid_tweet", "text": "Mid", "created_at": "2024-05-20T10:00:00.000Z"},
+        ]
+        temp_tweet_cache.persist_tweets(user_id, tweets)
+        watermark = temp_tweet_cache.get_newest_tweet_id(user_id)
+        assert watermark == "new_tweet"  # Highest created_at
+
+    def test_api_failure_returns_cached_tweets(
+        self, temp_tweet_cache: TweetCache
+    ) -> None:
+        """API failure returns cached tweets (graceful degradation)."""
+        from src.enrich.api_client import XEnrichmentClient
+
+        user_id = "api_fail_user"
+        cached_tweets = [
+            {"id": "cached_1", "text": "Cached", "created_at": "2024-05-20T10:00:00.000Z"},
+        ]
+        temp_tweet_cache.persist_tweets(user_id, cached_tweets)
+
+        with patch.object(XEnrichmentClient, '_fetch_tweets_from_api') as mock_fetch:
+            mock_fetch.side_effect = Exception("API error")
+            auth = MagicMock()
+            auth.access_token = "test_token"
+            client = XEnrichmentClient(auth=auth)
+
+            result = client.get_recent_tweets(user_id, max_tweets=50, tweet_cache=temp_tweet_cache)
+
+        # Returns cached tweets despite API failure
+        assert len(result) == 1
+        assert result[0]["tweet_id"] == "cached_1"
