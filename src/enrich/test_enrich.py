@@ -23,6 +23,7 @@ from dotenv import load_dotenv
 
 from src.auth.x_auth import ensure_authenticated
 from src.enrich.api_client import USER_FIELDS, XEnrichmentClient
+from src.enrich.tweet_cache import TweetCache
 from src.parse.following_parser import parse_following_js
 from src.scrape import follow_account_links, extract_entities, google_lookup_account
 from src.cluster.embed import store_tweet_embedding
@@ -257,10 +258,13 @@ def main() -> int:
     tweets_fetched_count = 0
     tweet_embeddings_created = 0
 
+    # Create TweetCache for accumulation across runs
+    tweet_cache = TweetCache()  # data/tweets.db
+
     for account_id in sample_ids:
         username = id_to_username.get(account_id, account_id)
         try:
-            tweets = client.get_recent_tweets(account_id, max_tweets=50)
+            tweets = client.get_recent_tweets(account_id, max_tweets=50, tweet_cache=tweet_cache)
             if tweets:
                 print(f"  @{username}: {len(tweets)} recent tweets")
                 for i, tweet in enumerate(tweets[:3]):  # Show first 3
@@ -282,13 +286,17 @@ def main() -> int:
                         json.dump(account, f, indent=2)
 
                     # Create tweet embedding for topical clustering
-                    embedding = store_tweet_embedding(account_id, cache_dir=cache_dir)
-                    if embedding:
-                        print(f"    → Tweet embedding: {len(embedding)} dimensions")
-                        # Show preview of embedding values
-                        preview = ", ".join(f"{v:.3f}" for v in embedding[:5])
-                        print(f"      Preview: [{preview}, ...]")
-                        tweet_embeddings_created += 1
+                    try:
+                        embedding = store_tweet_embedding(account_id, cache_dir=cache_dir)
+                        if embedding:
+                            print(f"    → Tweet embedding: {len(embedding)} dimensions")
+                            # Show preview of embedding values
+                            preview = ", ".join(f"{v:.3f}" for v in embedding[:5])
+                            print(f"      Preview: [{preview}, ...]")
+                            tweet_embeddings_created += 1
+                    except Exception as e:
+                        logger.warning("Embedding rebuild failed for %s: %s", account_id, e)
+                        # Continue to next account - do NOT rollback account JSON update
             else:
                 print(f"  @{username}: no recent tweets")
         except Exception as e:
