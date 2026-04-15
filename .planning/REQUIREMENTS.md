@@ -79,8 +79,8 @@ Format: `[CATEGORY]-[NUMBER]` (e.g., PARSE-01, ENRICH-03)
 ### CACHE — Tweet Caching (v1.2)
 
 - [x] **CACHE-01**: Enrichment reads tweets from cache, fetches only new tweets on miss
-- [ ] **CACHE-02**: Tweets cached with accumulation across runs (dedupe by ID)
-- [ ] **CACHE-03**: No limit on stored posts — cache grows over multiple invocations
+- [x] **CACHE-02**: Tweets cached with accumulation across runs (dedupe by ID)
+- [x] **CACHE-03**: No limit on stored posts — cache grows over multiple invocations
 
 ---
 

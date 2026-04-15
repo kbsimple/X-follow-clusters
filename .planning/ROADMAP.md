@@ -18,7 +18,7 @@
 
 - [x] **Phase 9: TweetCache Core** — SQLite schema and cache read/write foundation
 - [x] **Phase 10: Incremental Fetch** — since_id watermarks for efficient API usage
-- [ ] **Phase 11: Accumulation & Integration** — Merge logic, persistence, and end-to-end validation
+- [x] **Phase 11: Accumulation & Integration** — Merge logic, persistence, and end-to-end validation (completed 2026-04-15)
 
 ---
 
@@ -82,11 +82,11 @@ Plans:
 4. Consumer layer (embed.py, entities.py) receives merged tweet list unchanged
 5. Integration tests cover first fetch vs subsequent, deduplication, and embedding rebuild
 
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 
 Plans:
-- [ ] 11-01-PLAN.md — Integrate TweetCache in test_enrich.py with error handling
-- [ ] 11-02-PLAN.md — Add comprehensive integration tests for accumulation flow
+- [x] 11-01-PLAN.md — Integrate TweetCache in test_enrich.py with error handling
+- [x] 11-02-PLAN.md — Add comprehensive integration tests for accumulation flow
 
 ---
 
@@ -96,7 +96,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 9. TweetCache Core | 1/1 | Complete | 2026-04-12 |
 | 10. Incremental Fetch | 2/2 | Complete | 2026-04-12 |
-| 11. Accumulation & Integration | 0/2 | Not started | - |
+| 11. Accumulation & Integration | 2/2 | Complete   | 2026-04-15 |
 
 ---
 
