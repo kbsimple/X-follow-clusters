@@ -197,6 +197,127 @@ def store_tweet_embedding(
 
 
 # ---------------------------------------------------------------------------
+# Topic Embedding (Semantic Anchors for Clustering)
+# ---------------------------------------------------------------------------
+
+def create_topic_embedding(topic: str) -> list[float]:
+    """Create a semantic embedding from a topic name.
+
+    Topic embeddings serve as semantic anchors for clustering when users
+    don't have representative accounts but know the categories they want.
+    The embedding uses the same model as account embeddings, enabling
+    seamless integration with KMeans initialization.
+
+    Parameters
+    ----------
+    topic : str
+        Topic name (e.g., "AI Research", "Politics", "Journalism").
+
+    Returns
+    -------
+    list[float]
+        384-dimensional embedding as a JSON-serializable list.
+        The embedding is normalized to unit length, matching account embeddings.
+    """
+    model = _get_tweet_embedding_model()
+    embedding = model.encode(topic, normalize_embeddings=True)
+    return embedding.tolist()
+
+
+def create_topic_embeddings(topics: list[str]) -> dict[str, np.ndarray]:
+    """Create embeddings for multiple topics in a single batch.
+
+    Batch embedding is more efficient than individual calls because
+    the model processes all topics in one forward pass.
+
+    Parameters
+    ----------
+    topics : list[str]
+        List of topic names.
+
+    Returns
+    -------
+    dict[str, np.ndarray]
+        Mapping from topic name to embedding array.
+        Each array has shape (1, EMBEDDING_DIM) to match the shape
+        expected by seed_embeddings_by_category in compute_clusters().
+    """
+    if not topics:
+        return {}
+
+    model = _get_tweet_embedding_model()
+    embeddings = model.encode(topics, normalize_embeddings=True)
+
+    result = {}
+    for i, topic in enumerate(topics):
+        # Shape (1, 384) to match seed embedding format
+        result[topic] = embeddings[i : i + 1]
+
+    return result
+
+
+def load_topic_embeddings(config_path: Path | None = None) -> dict[str, np.ndarray]:
+    """Load topic embeddings from a YAML configuration file.
+
+    Topics provide semantic anchors for clustering when users know the
+    categories they want but don't have representative accounts. This is
+    simpler than account-based seeding since no account lookup is needed.
+
+    Supports two YAML formats:
+    - List format: topics: ["AI Research", "Politics"]
+    - Dict format: {"AI Research": null, "Politics": "description"}
+
+    Parameters
+    ----------
+    config_path : Path | None
+        Path to YAML config file. Defaults to config/seed_topics.yaml.
+
+    Returns
+    -------
+    dict[str, np.ndarray]
+        Mapping from topic name to embedding array of shape (1, EMBEDDING_DIM).
+        Returns empty dict if file doesn't exist (graceful degradation).
+    """
+    if config_path is None:
+        config_path = Path("config/seed_topics.yaml")
+
+    if not config_path.exists():
+        logger.debug("Topic config not found at %s, returning empty dict", config_path)
+        return {}
+
+    with open(config_path, encoding="utf-8") as f:
+        config = yaml.safe_load(f)
+
+    if not config:
+        return {}
+
+    # Parse topics from either format
+    topics: list[str] = []
+
+    if isinstance(config, dict):
+        if "topics" in config:
+            # List format: {topics: ["AI", "Politics"]}
+            topics_list = config["topics"]
+            if isinstance(topics_list, list):
+                topics = [str(t) for t in topics_list]
+        else:
+            # Dict format: {"AI": null, "Politics": "description"}
+            # Use keys as topic names, values (descriptions) are ignored
+            topics = [str(k) for k in config.keys()]
+    elif isinstance(config, list):
+        # Direct list format: ["AI", "Politics"]
+        topics = [str(t) for t in config]
+
+    if not topics:
+        return {}
+
+    logger.info("Loaded %d topic seeds from %s", len(topics), config_path)
+
+    # Create embeddings for all topics
+    return create_topic_embeddings(topics)
+
+
+# ---------------------------------------------------------------------------
 # Embedding
 # ---------------------------------------------------------------------------
 
