@@ -894,6 +894,11 @@ def cluster_all(
         elif isinstance(cat_data, list):
             seed_accounts[cat] = cat_data
 
+    # Load topic seeds (optional - provides semantic anchors without accounts)
+    topic_embeddings = load_topic_embeddings()
+    if topic_embeddings:
+        logger.info("Loaded %d topic seeds from config/seed_topics.yaml", len(topic_embeddings))
+
     # Load all account cache files
     if dry_run:
         logger.info("dry_run=True — skipping live data loading")
@@ -934,10 +939,13 @@ def cluster_all(
     # Load seed embeddings
     seed_embeddings = load_seed_embeddings(seed_accounts, cache_dir)
 
+    # Merge topic seeds with account seeds (topics take precedence on name conflict)
+    all_seed_embeddings = {**seed_embeddings, **topic_embeddings}
+
     # Compute clusters
     labels, seed_centroids, final_centroids, category_names = compute_clusters(
         embeddings,
-        seed_embeddings,
+        all_seed_embeddings,
         algorithm=algorithm,
     )
 
@@ -962,16 +970,15 @@ def cluster_all(
         ]
 
     # Build cluster_id -> name mapping (category name for seed clusters, "discovered_N" for others)
-    n_seed_cats = len(seed_accounts)
+    # Include both account seeds and topic seeds
+    all_seed_categories = list(all_seed_embeddings.keys())
     cluster_name_by_id: dict[int, str] = {}
-    for i, cat in enumerate(seed_accounts.keys()):
-        if i < len(labels):
-            # Find which cluster ID corresponds to seed category i (by centroid proximity)
-            if seed_embeddings[cat].shape[0] > 0:
-                seed_cent = np.mean(seed_embeddings[cat], axis=0)
-                dists = np.linalg.norm(final_centroids - seed_cent, axis=1)
-                closest = np.argmin(dists)
-                cluster_name_by_id[closest] = cat
+    for cat in all_seed_categories:
+        if all_seed_embeddings[cat].shape[0] > 0:
+            seed_cent = np.mean(all_seed_embeddings[cat], axis=0)
+            dists = np.linalg.norm(final_centroids - seed_cent, axis=1)
+            closest = np.argmin(dists)
+            cluster_name_by_id[closest] = cat
     # Fill in discovered clusters
     discovered_count = 0
     for cid in range(len(final_centroids)):
@@ -992,7 +999,7 @@ def cluster_all(
         acct["cluster_name"] = cluster_name_by_id.get(lbl, f"cluster_{lbl}")
         acct["silhouette_score"] = silhouette_by_cluster.get(lbl, 0.0)
         acct["is_seed_category"] = lbl in [
-            i for i, name in cluster_name_by_id.items() if name in seed_accounts
+            i for i, name in cluster_name_by_id.items() if name in all_seed_embeddings
         ]
         acct["central_member_usernames"] = central_members_by_cluster.get(lbl, [])
 
