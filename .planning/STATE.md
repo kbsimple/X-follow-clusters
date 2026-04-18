@@ -91,12 +91,20 @@ None
 
 ---
 
+## Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260418-fbc | Add topic-only seeding option for clustering | 2026-04-18 | 9585c23 | [260418-fbc-add-topic-only-seeding-option-for-cluste](./quick/260418-fbc-add-topic-only-seeding-option-for-cluste/) |
+
+---
+
 ## Session Continuity
 
-**Last session:** 2026-04-15 — Phase 11 executed, v1.2 milestone complete
+**Last session:** 2026-04-18 — Completed quick task 260418-fbc: Add topic-only seeding option for clustering
 
 **Next action:** Run `/gsd-complete-milestone` to archive v1.2, or `/gsd-new-milestone` to start v1.3
 
 ---
 
-*Last updated: 2026-04-15 — Phase 11 complete, v1.2 milestone done*
+*Last updated: 2026-04-18 — Quick task 260418-fbc complete*
