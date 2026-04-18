@@ -57,7 +57,18 @@ def main() -> int:
         action="store_true",
         help="Run only the OAuth 2.0 authorization flow and exit",
     )
+    parser.add_argument(
+        "--force-refresh",
+        action="store_true",
+        help="Force fresh OAuth tokens (delete stored tokens first)",
+    )
     args = parser.parse_args(args=_underscore_to_hyphen(sys.argv[1:]))
+
+    if args.force_refresh:
+        tokens_path = Path("data/tokens.json")
+        if tokens_path.exists():
+            tokens_path.unlink()
+            print("Deleted stored tokens. Will initiate fresh OAuth flow.")
 
     if args.auth_only:
         auth = ensure_authenticated()
