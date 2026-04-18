@@ -325,6 +325,7 @@ def run_clustering_test(
     max_accounts: int | None = None,
     algorithm: str = "kmeans",
     auto_seeds: bool = True,
+    topic_seeds: bool = False,
 ) -> int:
     """Run the clustering test.
 
@@ -333,6 +334,7 @@ def run_clustering_test(
         max_accounts: Maximum accounts to process.
         algorithm: Clustering algorithm ("kmeans" or "hdbscan").
         auto_seeds: Whether to auto-generate seed categories.
+        topic_seeds: Whether to use topic-only seeding from config/seed_topics.yaml.
 
     Returns:
         0 on success, 1 on error.
@@ -356,7 +358,7 @@ def run_clustering_test(
         # HDBSCAN doesn't require seeds - use empty dict
         seeds = {}
         print("  HDBSCAN mode: no seeds required (unsupervised clustering)")
-    elif auto_seeds:
+    elif auto_seeds and not topic_seeds:
         seeds = auto_generate_seeds(accounts)
         print(f"  Auto-generated {len(seeds)} seed categories:")
         for cat, usernames in seeds.items():
@@ -385,6 +387,7 @@ def run_clustering_test(
         EMBEDDING_MODEL,
         embed_accounts,
         load_seed_embeddings,
+        load_topic_embeddings,
         compute_clusters,
         compute_silhouette_scores,
     )
@@ -401,6 +404,18 @@ def run_clustering_test(
     seed_embeddings = load_seed_embeddings(seeds, cache_dir)
     n_valid_seeds = sum(1 for v in seed_embeddings.values() if v.shape[0] > 0)
     print(f"  Found embeddings for {n_valid_seeds}/{len(seeds)} seed categories")
+
+    # Step 4b: Load topic seeds if requested
+    if topic_seeds:
+        topic_embeddings = load_topic_embeddings()
+        if topic_embeddings:
+            print(f"  Loaded {len(topic_embeddings)} topic seeds:")
+            for topic in topic_embeddings.keys():
+                print(f"    - {topic}")
+            # Merge topic seeds with account seeds (topics take precedence)
+            seed_embeddings = {**seed_embeddings, **topic_embeddings}
+        else:
+            print("  No topic seeds found (config/seed_topics.yaml not present)")
 
     # Step 5: Run clustering
     print(f"\n[Step 5] Running {algorithm.upper()} clustering...")
@@ -447,6 +462,11 @@ def main() -> int:
         action="store_true",
         help="Use seed_accounts.yaml instead of auto-generated seeds",
     )
+    parser.add_argument(
+        "--topic-seeds",
+        action="store_true",
+        help="Load topic seeds from config/seed_topics.yaml (semantic anchors for KMeans)",
+    )
     args = parser.parse_args()
 
     return run_clustering_test(
@@ -454,6 +474,7 @@ def main() -> int:
         max_accounts=args.max_accounts,
         algorithm=args.algorithm,
         auto_seeds=not args.no_auto_seeds,
+        topic_seeds=args.topic_seeds,
     )
 
 

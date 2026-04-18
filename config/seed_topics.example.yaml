@@ -1,0 +1,20 @@
+# Topic-only seeding for clustering
+# These topics are embedded and used as cluster centroids
+# Useful when you know the categories but don't have representative accounts
+#
+# Usage:
+#   1. Copy this file to config/seed_topics.yaml
+#   2. Edit the topics list to match your desired categories
+#   3. Run clustering with KMeans algorithm (topics work as seed centroids)
+#
+# Note: Topics work alongside account seeds from config/seed_accounts.yaml
+#       If a category exists in both, the topic embedding takes precedence
+
+topics:
+  - AI Research
+  - Machine Learning
+  - Politics
+  - Journalism
+  - Startups & VC
+  - Science
+  - Technology
