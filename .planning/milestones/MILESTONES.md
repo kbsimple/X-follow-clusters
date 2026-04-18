@@ -1,5 +1,24 @@
 # Milestones
 
+## v1.2 Caching API Calls — 2026-04-18
+
+**Status:** ✅ SHIPPED
+**Phases:** 9-11 | **Plans:** 5 | **Tasks:** ~8
+
+### Accomplishments
+
+1. SQLite-backed TweetCache class with TEXT tweet_id PRIMARY KEY, WAL mode, and O(1) deduplication via INSERT OR IGNORE
+2. TweetCache method for O(1) newest tweet ID lookup using existing created_at DESC index
+3. XEnrichmentClient.get_recent_tweets with cache-first logic, since_id watermarks, and graceful degradation on API failure
+4. TweetCache integrated into enrichment pipeline with graceful embedding failure handling
+5. 6 integration tests for accumulation flow (first fetch, subsequent merge, deduplication, watermark tracking)
+
+**Files changed:** ~15 | **Timeline:** 3 days (4/12-4/18)
+
+**Tech debt:** None new
+
+---
+
 ## v1.1 OAuth 2.0 PKCE + Scrape Enhancement — 2026-04-12
 
 **Status:** ✅ SHIPPED

@@ -10,7 +10,7 @@
 
 - ✅ **v1.0 MVP** — Phases 1-6 (shipped 2026-04-06) — [v1.0-ROADMAP.md](./milestones/v1.0-ROADMAP.md)
 - ✅ **v1.1** — OAuth 2.0 PKCE + Scrape Enhancement (Phase 7-8, shipped 2026-04-12)
-- 🚧 **v1.2** — Caching API Calls (Phase 9-11, in progress)
+- ✅ **v1.2** — Caching API Calls (Phase 9-11, shipped 2026-04-18) — [v1.2-ROADMAP.md](./milestones/v1.2-ROADMAP.md)
 
 ---
 
