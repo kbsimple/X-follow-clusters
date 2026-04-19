@@ -1,0 +1,142 @@
+# Airport IATA codes mapped to city/region
+#
+# Format: CODE: "City State/Country"
+#
+# Update this file by running:
+#   python scripts/update_airport_codes.py
+#
+# Source: https://ourairports.com/data/ (public domain)
+
+# New England
+PVD: "Providence Rhode Island"
+BOS: "Boston Massachusetts"
+MHT: "Manchester New Hampshire"
+BDL: "Hartford Connecticut"
+PWM: "Portland Maine"
+BTV: "Burlington Vermont"
+
+# California
+SFO: "San Francisco California"
+LAX: "Los Angeles California"
+SAN: "San Diego California"
+SJC: "San Jose California"
+OAK: "Oakland California"
+BUR: "Burbank Los Angeles California"
+LGB: "Long Beach Los Angeles California"
+SMF: "Sacramento California"
+SNA: "Orange County Los Angeles California"
+ONT: "Ontario Los Angeles California"
+
+# New York / Northeast
+JFK: "New York City New York"
+LGA: "New York City New York"
+EWR: "Newark New York New Jersey"
+BUF: "Buffalo New York"
+ALB: "Albany New York"
+ROC: "Rochester New York"
+SYR: "Syracuse New York"
+HPN: "White Plains New York"
+
+# Washington DC / Mid-Atlantic
+DCA: "Washington DC"
+IAD: "Washington DC Virginia"
+BWI: "Baltimore Washington Maryland"
+PHL: "Philadelphia Pennsylvania"
+PIT: "Pittsburgh Pennsylvania"
+RIC: "Richmond Virginia"
+RDU: "Raleigh Durham North Carolina"
+CLT: "Charlotte North Carolina"
+
+# South
+ATL: "Atlanta Georgia"
+MIA: "Miami Florida"
+FLL: "Fort Lauderdale Florida"
+MCO: "Orlando Florida"
+TPA: "Tampa Florida"
+IAH: "Houston Texas"
+DFW: "Dallas Fort Worth Texas"
+AUS: "Austin Texas"
+SAT: "San Antonio Texas"
+DAL: "Dallas Texas"
+HOU: "Houston Texas"
+MSY: "New Orleans Louisiana"
+BNA: "Nashville Tennessee"
+MEM: "Memphis Tennessee"
+
+# Midwest
+ORD: "Chicago Illinois"
+MDW: "Chicago Illinois"
+DTW: "Detroit Michigan"
+MSP: "Minneapolis Minnesota"
+MKE: "Milwaukee Wisconsin"
+CLE: "Cleveland Ohio"
+CMH: "Columbus Ohio"
+CVG: "Cincinnati Ohio"
+IND: "Indianapolis Indiana"
+STL: "St Louis Missouri"
+KC: "Kansas City Missouri"
+MCI: "Kansas City Missouri"
+OMA: "Omaha Nebraska"
+
+# Mountain West
+DEN: "Denver Colorado"
+SLC: "Salt Lake City Utah"
+PHX: "Phoenix Arizona"
+LAS: "Las Vegas Nevada"
+RNO: "Reno Nevada"
+ABQ: "Albuquerque New Mexico"
+BOI: "Boise Idaho"
+
+# Pacific Northwest / West
+SEA: "Seattle Washington"
+PDX: "Portland Oregon"
+GEG: "Spokane Washington"
+YVR: "Vancouver Canada"
+YEG: "Edmonton Canada"
+YYC: "Calgary Canada"
+
+# International - Europe
+LHR: "London United Kingdom"
+LGW: "London United Kingdom"
+STN: "London United Kingdom"
+CDG: "Paris France"
+ORY: "Paris France"
+FRA: "Frankfurt Germany"
+MUC: "Munich Germany"
+AMS: "Amsterdam Netherlands"
+MAD: "Madrid Spain"
+BCN: "Barcelona Spain"
+FCO: "Rome Italy"
+MXP: "Milan Italy"
+ZRH: "Zurich Switzerland"
+VIE: "Vienna Austria"
+DUB: "Dublin Ireland"
+LIS: "Lisbon Portugal"
+ATH: "Athens Greece"
+
+# International - Asia
+NRT: "Tokyo Japan"
+HND: "Tokyo Japan"
+KIX: "Osaka Japan"
+ICN: "Seoul South Korea"
+PEK: "Beijing China"
+PVG: "Shanghai China"
+HKG: "Hong Kong"
+SIN: "Singapore"
+BKK: "Bangkok Thailand"
+DEL: "Delhi India"
+BOM: "Mumbai India"
+TYO: "Tokyo Japan"
+
+# International - Other
+SYD: "Sydney Australia"
+MEL: "Melbourne Australia"
+AKL: "Auckland New Zealand"
+DXB: "Dubai UAE"
+TLV: "Tel Aviv Israel"
+JNB: "Johannesburg South Africa"
+GRU: "Sao Paulo Brazil"
+EZE: "Buenos Aires Argentina"
+MEX: "Mexico City Mexico"
+YYZ: "Toronto Canada"
+YUL: "Montreal Canada"

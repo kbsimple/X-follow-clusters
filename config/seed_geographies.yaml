@@ -1,0 +1,25 @@
+# Geographic topic seeds for location-based clustering
+#
+# These are used to anchor geographic clusters independently of topical clusters.
+# Accounts can belong to BOTH a topical cluster AND one or more geographic clusters.
+#
+# Usage:
+#   python -m src.cluster.geo_cluster
+#
+# This runs a separate pass that clusters accounts by location only.
+
+topics:
+  - "Rhode Island Providence New England PVD Warwick Cranston North Kingstown East Greenwich Pawtucket Woonsocket"
+  - "San Francisco Bay Area Silicon Valley SF Palo Alto Mountain View Sunnyvale Menlo Park Oakland Berkeley San Jose"
+  - "New York City NYC Manhattan Brooklyn Queens Bronx Staten Island"
+  - "Los Angeles LA Hollywood Santa Monica Venice California"
+  - "Washington DC Capitol Hill Virginia Maryland Arlington Alexandria"
+  - "Boston Cambridge Massachusetts MA Somerville Brighton Newton Brookline"
+  - "Denver Colorado Boulder Rocky Mountains CO"
+  - "London United Kingdom UK England Manchester Birmingham"
+  - "Nashville Tennessee TN"
+  - "San Diego California SD"
+  - "Texas Dallas Houston Austin San Antonio Fort Worth Plano TX"
+  - "Florida Miami Tampa Orlando Jacksonville Fort Lauderdale FL"
+  - "Chicago Illinois Midwest IL Indianapolis Milwaukee Detroit"
+  - "Seattle Portland Pacific Northwest Oregon WA"

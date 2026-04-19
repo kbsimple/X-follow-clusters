@@ -43,8 +43,32 @@ Alternatively, configure the repo locally so rebasing never introduces the wrong
 git config --local author.name 'Faiser'
 git config --local author.email 'keepbreakfastsimple@gmail.com'
 git config --local committer.name 'Faiser'
-git config --local committer.email 'keepbreakfastsimple@gmail.com'
+git config --local committer.email 'keepbreakpacksimple@gmail.com'
 ```
+
+### SQLite Database Protection
+
+**CRITICAL: The SQLite database (`data/tweets.db`) contains posts that are expensive to acquire via API calls.**
+
+Before executing ANY command that would delete, truncate, or remove data from the SQLite database:
+
+1. **STOP** and explicitly state what data would be deleted
+2. **ASK** the user for confirmation with details: "This will delete X rows from table Y. Proceed?"
+3. **WAIT** for explicit user approval before executing
+
+Commands requiring double confirmation include but are not limited to:
+- `DELETE FROM ...`
+- `TRUNCATE TABLE ...`
+- `DROP TABLE ...`
+- Any migration that removes columns or tables
+- Any script that purges old data
+
+**File-level operations also require confirmation:**
+- Moving, renaming, or deleting `data/tweets.db`
+- Running `rm`, `mv`, or any filesystem operation on `data/tweets.db`
+- Git operations that would remove the file (e.g., `git clean`, branch switches that delete untracked files)
+
+**Rationale:** Each tweet was fetched via X API with rate limits. Re-acquiring would consume API quota and time.
 <!-- GSD:conventions-end -->
 
 <!-- GSD:architecture-start source:ARCHITECTURE.md -->
