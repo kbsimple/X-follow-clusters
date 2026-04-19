@@ -99,6 +99,55 @@ Edit `config/seed_accounts.yaml` with real usernames from your following list. T
 
 ---
 
+## Running individual stages
+
+Each stage is restartable. Stages that read from cache skip already-processed accounts automatically.
+
+### Auth — authorize with X API
+
+```bash
+python -m src --auth-only
+```
+
+Opens a browser URL for OAuth 2.0 PKCE authorization. Tokens are saved to `data/tokens.json` and reused on every subsequent run. Only needed once (or after token expiry).
+
+### Read and store posts — enrich accounts
+
+```bash
+# Enrich up to 5 accounts (default)
+python -m src.enrich.test_enrich
+
+# Enrich a larger batch
+python -m src.enrich.test_enrich --limit 50
+```
+
+Fetches profile data and recent tweets for accounts not yet in `data/enrichment/`. Already-cached accounts are skipped automatically — re-running is safe and incremental.
+
+**Use only cached data (no API calls):**
+
+The enrichment step always checks `data/enrichment/` first. If all accounts are already cached, it exits without making any API calls. To explicitly work only from cache in downstream steps, skip this stage entirely and proceed to clustering.
+
+### Cluster — group accounts by topic
+
+```python
+from src.cluster.embed import cluster_all
+
+# Default: KMeans seeded from config/seed_accounts.yaml
+result = cluster_all()
+
+# HDBSCAN — unsupervised discovery mode (no seed accounts needed)
+result = cluster_all(algorithm="hdbscan")
+
+# Dry run — validate the pipeline without enrichment files
+result = cluster_all(dry_run=True)
+```
+
+Reads `data/enrichment/*.json` (already on disk), embeds bios with `all-MiniLM-L6-v2`, and runs semi-supervised K-Means. No API calls needed — all input is local cache.
+
+**Use only cached embeddings:** Embeddings are cached to `data/embeddings.npy` after the first run. Re-running clustering reuses them automatically when the account list hasn't changed.
+
+---
+
 ## Phases
 
 Run each phase sequentially. Each phase is restartable — it skips accounts already processed.
