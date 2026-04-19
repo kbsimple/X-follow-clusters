@@ -1,12 +1,11 @@
+---
+name: eval-geo-clustering
+description: Run geographic clustering pipeline and produce a report on efficacy, coverage, and improvement opportunities. Use when evaluating or improving geographic topic assignments.
+---
+
 # Evaluate Geographic Clustering
 
 Run the geographic clustering pipeline and produce a report on efficacy, coverage, and improvement opportunities.
-
-## Usage
-
-```
-/eval-geo-clustering
-```
 
 ## Process
 
