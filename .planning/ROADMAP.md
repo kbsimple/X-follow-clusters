@@ -11,11 +11,13 @@
 - ✅ **v1.0 MVP** — Phases 1-6 (shipped 2026-04-06) — [v1.0-ROADMAP.md](./milestones/v1.0-ROADMAP.md)
 - ✅ **v1.1** — OAuth 2.0 PKCE + Scrape Enhancement (Phase 7-8, shipped 2026-04-12)
 - ✅ **v1.2** — Caching API Calls (Phase 9-11, shipped 2026-04-18) — [v1.2-ROADMAP.md](./milestones/v1.2-ROADMAP.md)
+- 🔄 **v1.3** — Embedding Cache Enhancement (Phase 12, in progress)
 
 ---
 
 ## Phases
 
+- [ ] **Phase 12: SQLite Embedding Cache** — Incremental embedding updates with model version tracking
 - [x] **Phase 9: TweetCache Core** — SQLite schema and cache read/write foundation
 - [x] **Phase 10: Incremental Fetch** — since_id watermarks for efficient API usage
 - [x] **Phase 11: Accumulation & Integration** — Merge logic, persistence, and end-to-end validation (completed 2026-04-15)
@@ -90,13 +92,38 @@ Plans:
 
 ---
 
+### Phase 12: SQLite Embedding Cache
+
+**Goal:** Embedding cache supports incremental updates, model version tracking, and text change detection
+
+**Depends on:** Phase 11 (Accumulation & Integration)
+
+**Requirements:** EMBED-01 (incremental updates), EMBED-02 (model version tracking), EMBED-03 (text hash invalidation)
+
+**Success Criteria** (what must be TRUE):
+1. SQLite database `data/embeddings.db` created with schema (account_id TEXT PRIMARY KEY, embedding BLOB, text_hash TEXT, model_version TEXT)
+2. EmbeddingCache class provides load/save/query operations with WAL mode
+3. embed_accounts() uses cache for incremental updates (only compute new/changed accounts)
+4. Model version stored and checked — cache invalidated on model change
+5. Text hash stored — re-compute embedding when bio/location changes
+6. All embeddings loadable as numpy array for clustering operations
+
+**Plans:** 2 plans
+
+Plans:
+- [ ] 12-01-PLAN.md — Create EmbeddingCache class with SQLite schema, BLOB serialization, model version tracking
+- [ ] 12-02-PLAN.md — Integrate EmbeddingCache into embed_accounts() for incremental updates
+
+---
+
 ## Progress
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
+| 12. SQLite Embedding Cache | 0/2 | Planning | — |
 | 9. TweetCache Core | 1/1 | Complete | 2026-04-12 |
 | 10. Incremental Fetch | 2/2 | Complete | 2026-04-12 |
-| 11. Accumulation & Integration | 2/2 | Complete   | 2026-04-15 |
+| 11. Accumulation & Integration | 2/2 | Complete | 2026-04-15 |
 
 ---
 
@@ -107,8 +134,11 @@ Plans:
 | CACHE-01 | 10 | Enrichment reads tweets from cache, fetches only new tweets on miss |
 | CACHE-02 | 9, 11 | Tweets cached with accumulation across runs (dedupe by ID) |
 | CACHE-03 | 11 | No limit on stored posts — cache grows over multiple invocations |
+| EMBED-01 | 12 | Embedding cache supports incremental updates (only compute new/changed accounts) |
+| EMBED-02 | 12 | Model version tracked and cache invalidated on model change |
+| EMBED-03 | 12 | Text hash stored for re-computation when bio/location changes |
 
-**Coverage:** 3/3 requirements mapped
+**Coverage:** 6/6 requirements mapped
 
 ---
-*Last updated: 2026-04-15 — Phase 11 complete*
+*Last updated: 2026-04-24 — Phase 12 planned with 2 plans*
