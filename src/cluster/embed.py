@@ -16,7 +16,7 @@ import logging
 import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, TYPE_CHECKING
 
 import numpy as np
 import yaml
@@ -30,6 +30,9 @@ except ImportError:
 from sentence_transformers import SentenceTransformer
 from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_samples
+
+if TYPE_CHECKING:
+    from src.cluster.embedding_cache import EmbeddingCache
 
 logger = logging.getLogger(__name__)
 
@@ -326,11 +329,14 @@ def embed_accounts(
     model_name: str = EMBEDDING_MODEL,
     batch_size: int = 64,
     cache_path: Path | None = None,
+    embedding_cache: EmbeddingCache | None = None,
 ) -> tuple[np.ndarray, list[dict]]:
-    """Embed account text fields using a sentence-transformer model.
+    """Embed account text fields using sentence-transformer with SQLite cache.
 
-    Embeddings are cached to ``cache_path`` (data/embeddings.npy) on first run.
-    On subsequent runs the cache is loaded if it exists and the count matches.
+    Uses EmbeddingCache for incremental updates:
+    - Only computes embeddings for new/changed accounts
+    - Invalidates cache on model version change
+    - Re-computes when bio/location text changes
 
     Parameters
     ----------
@@ -341,12 +347,16 @@ def embed_accounts(
     batch_size : int
         Encoding batch size.
     cache_path : Path | None
-        Path to cache file. Defaults to data/embeddings.npy.
+        Path to SQLite database file. Defaults to data/embeddings.db.
+        Ignored if embedding_cache is provided.
+    embedding_cache : EmbeddingCache | None
+        Pre-initialized EmbeddingCache instance. If provided, cache_path is ignored.
+        Useful for testing with isolated cache instances.
 
     Returns
     -------
     tuple[np.ndarray, list[dict]]
-        embedding matrix of shape (n_accounts, 384), and the filtered
+        Embedding matrix of shape (n_accounts, 384), and the filtered
         accounts list (accounts with non-empty text).
 
     Raises
@@ -355,54 +365,84 @@ def embed_accounts(
         If fewer than MIN_TEXT_ACCOUNTS accounts have non-empty text.
     """
     if cache_path is None:
-        cache_path = Path("data/embeddings.npy")
+        cache_path = Path("data/embeddings.db")
+
+    # Initialize cache if not provided (deferred import to avoid circular dependency)
+    if embedding_cache is None:
+        from src.cluster.embedding_cache import EmbeddingCache
+        embedding_cache = EmbeddingCache(db_path=cache_path)
 
     # Build (text, account) pairs, filtering empty texts
     texts = []
     valid_accounts = []
+    account_ids = []
     for acct in accounts:
         txt = get_text_for_embedding(acct)
         if txt:
             texts.append(txt)
             valid_accounts.append(acct)
+            account_ids.append(acct.get("id") or acct.get("username"))
 
     if len(valid_accounts) < MIN_TEXT_ACCOUNTS:
         raise ValueError(
             f"Only {len(valid_accounts)} accounts have non-empty text for embedding. "
-            f"Need at least {MIN_TEXT_ACCOUNTS}. "
-            "Ensure data/enrichment/*.json files exist and contain bio/location data."
+            f"Need at least {MIN_TEXT_ACCOUNTS}."
         )
 
-    # Check cache
-    cache_path.parent.mkdir(parents=True, exist_ok=True)
-    usernames = [a["username"] for a in valid_accounts]
+    # Check cache for each account - collect cached and uncached
+    cached_embeddings: list[tuple[int, np.ndarray]] = []
+    uncached_texts: list[str] = []
+    uncached_accounts: list[dict] = []
+    uncached_indices: list[int] = []
 
-    if cache_path.exists():
-        sidecar_path = cache_path.with_suffix(".sidecar.json")
-        if sidecar_path.exists():
-            cached_usernames: list[str] = json.load(open(sidecar_path))
-            cached_emb: np.ndarray = np.load(cache_path)
-            if len(cached_usernames) == len(usernames) and cached_usernames == usernames:
-                logger.info("Loaded embeddings from cache: %s", cache_path)
-                return cached_emb, valid_accounts
+    for i, (acct, acct_id) in enumerate(zip(valid_accounts, account_ids)):
+        cached = embedding_cache.get_cached_embedding(acct_id, acct)
+        if cached is not None:
+            cached_embeddings.append((i, cached))
+        else:
+            uncached_texts.append(texts[i])
+            uncached_accounts.append(acct)
+            uncached_indices.append(i)
 
-    # Compute fresh
-    logger.info("Loading model %s …", model_name)
-    model = SentenceTransformer(model_name)
-    logger.info("Encoding %d accounts in batches of %d …", len(valid_accounts), batch_size)
-    embeddings = model.encode(
-        texts,
-        batch_size=batch_size,
-        normalize_embeddings=True,
-        show_progress_bar=True,
-    )
+    # Compute embeddings for uncached accounts
+    new_embeddings: np.ndarray | None = None
+    if uncached_texts:
+        logger.info("Loading model %s ...", model_name)
+        model = SentenceTransformer(model_name)
+        logger.info(
+            "Encoding %d uncached accounts (cached: %d) ...",
+            len(uncached_texts),
+            len(cached_embeddings),
+        )
+        new_embeddings = model.encode(
+            uncached_texts,
+            batch_size=batch_size,
+            normalize_embeddings=True,
+            show_progress_bar=True,
+        )
 
-    # Save cache
-    np.save(cache_path, embeddings)
-    json.dump(usernames, open(cache_path.with_suffix(".sidecar.json"), "w"))
-    logger.info("Saved embeddings to cache: %s", cache_path)
+        # Save new embeddings to cache
+        for emb, acct in zip(new_embeddings, uncached_accounts):
+            acct_id = acct.get("id") or acct.get("username")
+            embedding_cache.save_embedding(acct_id, emb, acct)
 
-    return embeddings, valid_accounts
+        logger.info("Saved %d new embeddings to cache", len(new_embeddings))
+    else:
+        logger.info("All %d embeddings loaded from cache", len(cached_embeddings))
+
+    # Build final embeddings array in original order
+    all_embeddings = np.zeros((len(valid_accounts), EMBEDDING_DIM), dtype=np.float32)
+
+    # Place cached embeddings
+    for idx, emb in cached_embeddings:
+        all_embeddings[idx] = emb
+
+    # Place newly computed embeddings
+    if new_embeddings is not None:
+        for uncached_idx, new_emb in zip(uncached_indices, new_embeddings):
+            all_embeddings[uncached_idx] = new_emb
+
+    return all_embeddings, valid_accounts
 
 
 # ---------------------------------------------------------------------------

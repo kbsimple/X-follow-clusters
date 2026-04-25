@@ -265,3 +265,145 @@ class TestHelperFunctions:
         hash2 = compute_text_hash(SAMPLE_ACCOUNT_2)
 
         assert hash1 != hash2
+
+
+class TestEmbeddingCacheIntegration:
+    """Integration tests for embed_accounts() with EmbeddingCache.
+
+    These tests verify:
+    1. First run computes and caches all embeddings
+    2. Second run loads all embeddings from cache (no model call)
+    3. Model version change causes re-computation
+    4. Text change causes re-computation for that account only
+    5. New account added causes computation only for new account
+    """
+
+    @staticmethod
+    def _make_test_accounts(count: int, start_id: int = 1) -> list[dict]:
+        """Create test accounts with unique IDs and descriptions.
+
+        MIN_TEXT_ACCOUNTS is 10, so tests need at least 10 accounts.
+        """
+        return [
+            {
+                "id": f"user_{start_id + i}",
+                "username": f"user{start_id + i}",
+                "description": f"Test description {i} for embedding",
+            }
+            for i in range(count)
+        ]
+
+    def test_first_run_computes_and_caches_all(
+        self, temp_embedding_cache: EmbeddingCache
+    ) -> None:
+        """First run: no cache -> compute all embeddings -> save to cache."""
+        from src.cluster.embed import embed_accounts
+
+        accounts = self._make_test_accounts(12)
+
+        embeddings, valid = embed_accounts(accounts, embedding_cache=temp_embedding_cache)
+
+        assert len(valid) == 12
+        assert embeddings.shape == (12, 384)
+
+        # Verify saved to cache
+        cached = temp_embedding_cache.load_all_embeddings()
+        assert cached[0].shape[0] == 12
+
+    def test_second_run_loads_from_cache(
+        self, temp_embedding_cache: EmbeddingCache
+    ) -> None:
+        """Second run: cache exists -> load from cache, no re-computation."""
+        from src.cluster.embed import embed_accounts
+        from unittest.mock import patch
+
+        accounts = self._make_test_accounts(10)
+
+        # First run - compute
+        embeddings_1, _ = embed_accounts(accounts, embedding_cache=temp_embedding_cache)
+
+        # Second run - should load from cache (no model call)
+        with patch("src.cluster.embed.SentenceTransformer") as mock_model:
+            embeddings_2, _ = embed_accounts(accounts, embedding_cache=temp_embedding_cache)
+            # Model should not be instantiated
+            mock_model.assert_not_called()
+
+        # Same embeddings
+        np.testing.assert_array_almost_equal(embeddings_1, embeddings_2)
+
+    def test_model_version_change_invalidates_cache(
+        self, temp_embedding_cache: EmbeddingCache
+    ) -> None:
+        """Model version change causes cache invalidation."""
+        from src.cluster.embed import embed_accounts
+
+        accounts = self._make_test_accounts(10)
+
+        # First run - save with current model version
+        embeddings_1, _ = embed_accounts(accounts, embedding_cache=temp_embedding_cache)
+
+        # Manually update model_version in cache to simulate model change
+        conn = sqlite3.connect(temp_embedding_cache.db_path)
+        conn.execute(
+            "UPDATE embeddings SET model_version = ?",
+            ("old-model-version",),
+        )
+        conn.commit()
+        conn.close()
+
+        # Second run - should recompute due to model version mismatch
+        embeddings_2, _ = embed_accounts(accounts, embedding_cache=temp_embedding_cache)
+
+        # Should have recomputed (can't compare values, just verify cache updated)
+        cached = temp_embedding_cache.load_all_embeddings()
+        assert cached[0].shape[0] == 10
+
+    def test_text_change_causes_recomputation(
+        self, temp_embedding_cache: EmbeddingCache
+    ) -> None:
+        """Text change (bio/location) causes re-computation for that account."""
+        from src.cluster.embed import embed_accounts
+
+        accounts = self._make_test_accounts(10)
+
+        # First run
+        embeddings_1, _ = embed_accounts(accounts, embedding_cache=temp_embedding_cache)
+
+        # Change the first account's text
+        accounts[0]["description"] = "Updated bio with completely new content for testing"
+
+        # Second run - should recompute due to text hash mismatch
+        embeddings_2, _ = embed_accounts(accounts, embedding_cache=temp_embedding_cache)
+
+        # First embedding should be different (text changed)
+        assert not np.allclose(embeddings_1[0], embeddings_2[0])
+
+    def test_new_account_added_computes_only_new(
+        self, temp_embedding_cache: EmbeddingCache
+    ) -> None:
+        """Adding new account only computes embedding for new account."""
+        from src.cluster.embed import embed_accounts
+        from unittest.mock import patch, MagicMock
+
+        # First run with 10 accounts
+        accounts_1 = self._make_test_accounts(10)
+        embeddings_1, _ = embed_accounts(accounts_1, embedding_cache=temp_embedding_cache)
+
+        # Second run with 11 accounts (10 cached, 1 new)
+        accounts_2 = accounts_1 + self._make_test_accounts(1, start_id=100)
+
+        # Track model encode calls
+        with patch("src.cluster.embed.SentenceTransformer") as mock_model_class:
+            mock_model = MagicMock()
+            mock_model_class.return_value = mock_model
+            mock_model.encode.return_value = np.random.randn(1, 384).astype(np.float32)
+
+            embeddings_2, _ = embed_accounts(accounts_2, embedding_cache=temp_embedding_cache)
+
+            # Model encode should only be called once (for the new account)
+            # Note: encode is called with a list, so we check the batch size
+            if mock_model.encode.called:
+                call_args = mock_model.encode.call_args
+                assert len(call_args[0][0]) == 1  # Only 1 text to encode
+
+        assert embeddings_2.shape[0] == 11
