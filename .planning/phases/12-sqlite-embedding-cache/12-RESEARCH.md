@@ -443,17 +443,13 @@ def migrate_npy_to_sqlite():
 
 **If this table is empty:** All claims in this research were verified or cited — no user confirmation needed.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Should migration delete or rename old numpy files?**
-   - What we know: Migration script renames to `.migrated` suffix
-   - What's unclear: Whether to auto-delete after successful migration
-   - Recommendation: Rename first, delete manually after verification
+   - RESOLVED: Rename to `.migrated` suffix, delete manually after verification. Migration script will handle rename only.
 
 2. **Should `get_model_version()` include embedding dimension?**
-   - What we know: Current approach uses model name + library version
-   - What's unclear: Whether to include `EMBEDDING_DIM` in version string
-   - Recommendation: Not needed — dimension is implied by model name
+   - RESOLVED: No — dimension is implied by model name. Using model name + library version is sufficient.
 
 ## Environment Availability
 
