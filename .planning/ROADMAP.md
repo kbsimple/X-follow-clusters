@@ -11,13 +11,13 @@
 - ✅ **v1.0 MVP** — Phases 1-6 (shipped 2026-04-06) — [v1.0-ROADMAP.md](./milestones/v1.0-ROADMAP.md)
 - ✅ **v1.1** — OAuth 2.0 PKCE + Scrape Enhancement (Phase 7-8, shipped 2026-04-12)
 - ✅ **v1.2** — Caching API Calls (Phase 9-11, shipped 2026-04-18) — [v1.2-ROADMAP.md](./milestones/v1.2-ROADMAP.md)
-- 🔄 **v1.3** — Embedding Cache Enhancement (Phase 12, in progress)
+- ✅ **v1.3** — Embedding Cache Enhancement (Phase 12, shipped 2026-04-24)
 
 ---
 
 ## Phases
 
-- [ ] **Phase 12: SQLite Embedding Cache** — Incremental embedding updates with model version tracking
+- [x] **Phase 12: SQLite Embedding Cache** — Incremental embedding updates with model version tracking (completed 2026-04-24)
 - [x] **Phase 9: TweetCache Core** — SQLite schema and cache read/write foundation
 - [x] **Phase 10: Incremental Fetch** — since_id watermarks for efficient API usage
 - [x] **Phase 11: Accumulation & Integration** — Merge logic, persistence, and end-to-end validation (completed 2026-04-15)
@@ -108,11 +108,11 @@ Plans:
 5. Text hash stored — re-compute embedding when bio/location changes
 6. All embeddings loadable as numpy array for clustering operations
 
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 
 Plans:
-- [ ] 12-01-PLAN.md — Create EmbeddingCache class with SQLite schema, BLOB serialization, model version tracking
-- [ ] 12-02-PLAN.md — Integrate EmbeddingCache into embed_accounts() for incremental updates
+- [x] 12-01-PLAN.md — Create EmbeddingCache class with SQLite schema, BLOB serialization, model version tracking
+- [x] 12-02-PLAN.md — Integrate EmbeddingCache into embed_accounts() for incremental updates
 
 ---
 
@@ -120,7 +120,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 12. SQLite Embedding Cache | 0/2 | Planning | — |
+| 12. SQLite Embedding Cache | 2/2 | Complete | 2026-04-24 |
 | 9. TweetCache Core | 1/1 | Complete | 2026-04-12 |
 | 10. Incremental Fetch | 2/2 | Complete | 2026-04-12 |
 | 11. Accumulation & Integration | 2/2 | Complete | 2026-04-15 |
@@ -141,4 +141,4 @@ Plans:
 **Coverage:** 6/6 requirements mapped
 
 ---
-*Last updated: 2026-04-24 — Phase 12 planned with 2 plans*
+*Last updated: 2026-04-24 — Phase 12 complete: SQLite Embedding Cache*
