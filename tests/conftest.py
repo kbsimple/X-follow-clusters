@@ -184,3 +184,12 @@ def temp_tweet_cache(tmp_path: Path):
 
     db_path = tmp_path / "tweets.db"
     return TweetCache(db_path=db_path)
+
+
+@pytest.fixture
+def temp_embedding_cache(tmp_path: Path):
+    """Create an EmbeddingCache with temporary database for testing."""
+    from src.cluster.embedding_cache import EmbeddingCache
+
+    db_path = tmp_path / "embeddings.db"
+    return EmbeddingCache(db_path=db_path)
